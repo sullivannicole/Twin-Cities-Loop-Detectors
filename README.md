@@ -90,11 +90,7 @@ Note that a variable is created containing the percentage of nulls/impossible va
 * library(foreach)
 * library(doParallel)
 
-:: --------------------------------------------------------------
-
 # Spatial Configuration of Detectors
-
-:: --------------------------------------------------------------
 
 The code in the *XML Conversion and Distance Calculations.Rmd* is used to convert the [spatial configuration of detectors](http://www.dot.state.mn.us/tmc/trafficinfo/developers.html) first to a dataframe.  The dataframe is used both to calculate distances between the upstream detector and the detector of interest (for approximation of vehicle miles traveled, VMT, on the network for a given period).  The dataframe is also converted to a SpatialLinesDataFrame which is then written out to a shapefile.  While the dataframe contains lat/lons that can be used for visualization purposes, a shapefile is more effective for visualization of lines in Tableau (as it eliminates the auto-borders created).
 
