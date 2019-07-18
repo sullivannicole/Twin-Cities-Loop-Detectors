@@ -1,0 +1,33 @@
+"0","```r
+# Can use code below to check which corridors are available for pull, and which sensors belong to which corridors
+
+# metro_config <- fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv')
+# 
+# Look at corridors in order of # of mainline stations
+metro_config %>%
+  filter(Rnode_n_type == 'Station') %>%
+  group_by(Corridor_route) %>%
+  count() %>%
+  arrange(desc(n))
+
+# Take a look at all the corridors
+metro_config %>%
+  select(Corridor_route) %>%
+  unique()
+# 
+# Find all sensors on a corridor
+config_mainline <- metro_config %>%
+  filter(Corridor_route == \"U.S.71\" & Rnode_n_type == 'Station') %>%
+  select(Detector_name)
+# 
+# Check mainline arguments
+# mainline_args <- crossing(config_mainline, extensions) %>%
+#   mutate(start_date = start_date,
+#          end_date = end_date) %>%
+#   rename(sensor = Detector_name)
+# 
+# Check where a detector falls corridor-wise
+# metro_config %>%
+#   filter(Detector_name == \"564\")
+
+```"

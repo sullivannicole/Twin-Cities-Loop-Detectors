@@ -1,0 +1,45 @@
+"0","```r
+# Convert clusters to numeric dummy variables
+cl_mod <- cl00_17 %>%
+  mutate(clusters = ifelse(clusters == \"A\", 1,
+                           ifelse(clusters == \"B\", 2, 3)))
+
+# Correlation Matrices by cluster assignment
+ggplot <- function(...)
+ggplot2::ggplot(...) + scale_color_brewer(palette=\"Purples\") + scale_fill_brewer(palette=\"Purples\")
+unlockBinding(\"ggplot\",parent.env(asNamespace(\"GGally\")))
+assign(\"ggplot\",ggplot,parent.env(asNamespace(\"GGally\")))
+
+graph_corr <- ggpairs(cl00_17, mapping = aes(color = clusters),
+                      columns = c('percentPOC2000', 'perc_poc', 'perSixFive2000', 'perc_65up', 'medHHinc2000', 'median_hhi', 'MedianValue2000', 'emv', 'builtSince00_2000', 'perc_new_bld', \"clusters\"),
+                      columnLabels = c('% POC 00', '% POC 17', '% 65+ 00', '% 65+ 17', 'HHI 00', 'HHI 17', 'EMV 00', 'EMV 17', 'New Builds 00', 'New Builds 17', \"clusters\"))
+
+graph_corr <- graph_corr + theme(text = element_text(family = \"Tw Cen MT\"),
+                                 strip.background = element_blank(),
+                                 panel.background = element_rect(fill = \"white\"),
+                                 panel.grid = element_line(color = \"white\"))
+
+graph_corr
+
+ggsave(\"Correlation Matrices by cluster assignment.png\", width = 12, height = 8)
+
+
+# Correlation Matrices without cluster assignment
+
+# snc_corr <- cl00_17 %>% mutate(TRACT = as.character(TRACT))
+# 
+# corr_fn <- function(data, mapping, ...) {   
+# 	ggplot(data = data, mapping = mapping) +     # make data points transparent     
+# 	geom_point(alpha = .5, color = \"lightsteelblue4\", size = 0.6) +     # add default smoother     
+# 	geom_smooth(se = FALSE, color = \"#6666CC\", size = 0.2) +
+#   #scale_fill_brewer(palette=\"Purples\") +
+#   theme(text = element_text(size = 5, family = \"Tw Cen MT\"),
+#           strip.background = element_rect(fill = \"white\"))
+# }  
+# 
+# ggpairs(select_if(snc_corr, is.numeric),
+#         lower = list(
+#           continuous = corr_fn
+#           ))
+
+```"

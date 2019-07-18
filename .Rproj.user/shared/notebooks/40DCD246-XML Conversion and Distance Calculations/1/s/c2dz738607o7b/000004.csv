@@ -1,0 +1,13 @@
+"0","config_stations <- config %>%
+  filter(Rnode_n_type == ""Station"")
+# Conflate lanes so they have the same upstream detector; create index
+config_conflated <- detector_rnode_corrs_tidy_ii %>%
+  filter(Rnode_n_type == ""Station"") %>%
+  select(Corridor_route, Corridor_dir, Corridor_category, Rnode_lat, Rnode_lon) %>%
+  unique() %>%
+  group_by(Corridor_route, Corridor_dir, Corridor_category) %>%
+  mutate(Corridor_conflated_index = row_number())
+"
+"2","Error in eval(lhs, parent, parent) : 
+  object 'detector_rnode_corrs_tidy_ii' not found
+"

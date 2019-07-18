@@ -1,0 +1,121 @@
+"0","```r
+sensor_pull <- function(corridor, sensor, extension, start_date, end_date) {
+  
+library(tidyverse)
+library(jsonlite)
+library(stringr)
+library(timeDate)
+library(lubridate)
+library(rlang)
+library(parallel)
+library(data.table)
+library(microbenchmark)
+library(foreach)
+library(doParallel)
+
+csv_name <- paste('Volume-Occupancy Data/', substr(start_date, 1, 4), '/', corridor, '/', 'Sensor ', sensor, ' ', extension, '30 ', start_date, '-', end_date, '.csv', sep = '')
+
+#fwrite(extensions, csv_name)
+
+# Create dataframe of all dates in year
+
+date <- as_date(ymd(start_date))-1 # Need to start the while with the day prior (works on a +1 logic)
+end_date <- as_date(ymd(end_date))
+dates_18 <- list()
+i <- 1
+
+while(date < end_date) {
+  
+  date = date + 1
+  dates_18[[i]] <- as.character(date)
+  i <- i + 1
+  
+}
+
+dates_18_df <- setNames(do.call(rbind.data.frame, dates_18), c('Date'))
+
+# Create URLs from dates
+loop_urls <- dates_18_df %>%
+  mutate(Date = str_replace_all(Date, c('-' = '')),
+         Loop_url_prefix = 'http://data.dot.state.mn.us:8080/trafdat/metro/2018/',
+         Post_date_slash = '/',
+         Sensor = sensor,
+         Post_sensor_period = '.',
+         Extension = extension,
+         Post_ex_30 = '30',
+         Json = '.json') %>%
+  unite(Loop_url, Loop_url_prefix, Date, Post_date_slash, Sensor, Post_sensor_period, Extension, Post_ex_30, Json, sep = '')
+
+## Create function for extracting data from URLs
+
+extract_loop_data <- function(URL){
+  
+URL_df_default <- as_tibble(NA, validate = F)
+
+try(URL_df_default <- data_frame(fromJSON(URL)))
+
+URL_df_default$Date_sensor_ext <- str_sub(URL, 53, 69)
+
+if (length(URL_df_default[[1]]) == 1) {
+  
+  URL_df_tidy_na <- URL_df_default %>%
+    mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+    mutate(Value = URL_df_default[[1]]) %>%
+    select(Value, Date_sensor_ext) %>%
+    separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+    mutate(Time = 'Entire day missing') %>%
+    select(Value, Sensor, Ext, Date, Time)
+  
+  URL_df_tidy_na <<- URL_df_tidy_na
+  
+} else {
+
+URL_df_tidy <- URL_df_default %>%
+  mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+  mutate(Value = URL_df_default[[1]]) %>%
+  separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+  select(Value, Sensor, Ext, Date)
+
+times <- as.data.frame(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+times_tidy <- times %>%
+  mutate(Time = times[[1]]) %>%
+  mutate(Time = format(Time, format = '%H:%M:%S')) %>%
+  select(Time)
+
+URL_df_times <- bind_cols(URL_df_tidy, times_tidy)
+
+URL_df_times <<- URL_df_times
+
+}
+
+}
+
+URL_find <- function(slice_number){
+  
+URL_found <- as.character(loop_urls %>% slice(slice_number))
+
+URL_found
+
+}
+
+
+## Loop through the data extract function with every URL
+URLs_in_list <- c(1:nrow(loop_urls))
+
+loop_days_sensor_ext <- vector(\"list\", length(URLs_in_list))
+for (i in seq_along(URLs_in_list)) {
+
+  loop_days_sensor_ext[[i]] <- extract_loop_data(URL_find(URLs_in_list[[i]]))
+  
+}
+
+
+## Save output as dataframe
+detector_ext <- do.call(bind_rows, loop_days_sensor_ext)
+
+fwrite(detector_ext, csv_name)
+
+}
+
+```"

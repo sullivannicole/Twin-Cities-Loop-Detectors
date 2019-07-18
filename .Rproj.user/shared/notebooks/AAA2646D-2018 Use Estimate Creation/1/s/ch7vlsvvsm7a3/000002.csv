@@ -1,0 +1,86 @@
+"0","setwd('Datasets/2013-2017/Summer Use Estimates')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/2013-2017/Summer Use Estimates inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","## 2017"
+"0","estimates_2017 <- read_csv('2017 Summer Use Estimates - No Events or Camping.csv')"
+"2","Parsed with column specification:
+cols(
+  `Park or Trail` = col_character(),
+  `Total by class and day type` = col_double()
+)
+"
+"0","x2017_tidy <- estimates_2017 %>%"
+"0","  rename(Park_trail = `Park or Trail`,"
+"0","         Estimate_17 = `Total by class and day type`) %>%"
+"0","  separate(Park_trail, into = c('Park_id', 'Trail_name'), sep = '=') %>%"
+"0","  mutate(Park_id = trimws(Park_id),"
+"0","         Trail_name = trimws(Trail_name)) %>%"
+"0","  mutate(Park_id = ifelse(Park_id == 121, 116, Park_id)) %>%"
+"0","  mutate(Park_id = as.numeric(Park_id)) %>%"
+"0","  select(-Trail_name)"
+"0","## 2016"
+"0","estimates_2016 <- read_csv('2016 Summer Use Estimates - No Events or Camping.csv')"
+"2","Parsed with column specification:
+cols(
+  `Park or Trail` = col_character(),
+  `Total by class and day type` = col_double()
+)
+"
+"0","x2016_tidy <- estimates_2016 %>%"
+"0","  rename(Park_trail = `Park or Trail`,"
+"0","         Estimate_16 = `Total by class and day type`) %>%"
+"0","  separate(Park_trail, into = c('Park_id', 'Trail_name'), sep = '=') %>%"
+"0","  mutate(Park_id = trimws(Park_id),"
+"0","         Trail_name = trimws(Trail_name)) %>%"
+"0","  mutate(Park_id = ifelse(Park_id == 121, 116, Park_id)) %>%"
+"0","  mutate(Park_id = as.numeric(Park_id)) %>%"
+"0","  select(-Trail_name)"
+"0","## 2015"
+"0","estimates_2015 <- read_csv('2015 Summer Use Estimates - No Events or Camping.csv')"
+"2","Parsed with column specification:
+cols(
+  `Park or Trail` = col_character(),
+  `Total by class and day type` = col_double()
+)
+"
+"0","x2015_tidy <- estimates_2015 %>%"
+"0","  rename(Park_trail = `Park or Trail`,"
+"0","         Estimate_15 = `Total by class and day type`) %>%"
+"0","  separate(Park_trail, into = c('Park_id', 'Trail_name'), sep = '=') %>%"
+"0","  mutate(Park_id = trimws(Park_id),"
+"0","         Trail_name = trimws(Trail_name)) %>%"
+"0","  mutate(Park_id = ifelse(Park_id == 121, 116, Park_id)) %>%"
+"0","  mutate(Park_id = as.numeric(Park_id)) %>%"
+"0","  select(-Trail_name)"
+"0","## 2014"
+"0","estimates_2014 <- read_csv('2014 Summer Use Estimates - No Events or Camping.csv')"
+"2","Parsed with column specification:
+cols(
+  `Park or Trail` = col_character(),
+  `Total by class and day type` = col_double()
+)
+"
+"0","x2014_tidy <- estimates_2014 %>%"
+"0","  rename(Park_trail = `Park or Trail`,"
+"0","         Estimate_14 = `Total by class and day type`) %>%"
+"0","  separate(Park_trail, into = c('Park_id', 'Trail_name'), sep = '=') %>%"
+"0","  mutate(Park_id = trimws(Park_id),"
+"0","         Trail_name = trimws(Trail_name)) %>%"
+"0","  mutate(Park_id = ifelse(Park_id == 121, 116, Park_id)) %>%"
+"0","  mutate(Park_id = as.numeric(Park_id)) %>%"
+"0","  select(-Trail_name)"
+"0","## 2013"
+"0","estimates_2013 <- read_csv('2013 Summer Use Estimates - No Events or Camping.csv')"
+"2","Parsed with column specification:
+cols(
+  `Park or Trail` = col_character(),
+  `Total by class and day type` = col_double()
+)
+"
+"0","x2013_tidy <- estimates_2013 %>%"
+"0","  rename(Park_trail = `Park or Trail`,"
+"0","         Estimate_13 = `Total by class and day type`) %>%"
+"0","  separate(Park_trail, into = c('Park_id', 'Trail_name'), sep = '=') %>%"
+"0","  mutate(Park_id = trimws(Park_id),"
+"0","         Trail_name = trimws(Trail_name)) %>%"
+"0","  mutate(Park_id = as.numeric(Park_id)) %>%"
+"0","  select(-Trail_name)"

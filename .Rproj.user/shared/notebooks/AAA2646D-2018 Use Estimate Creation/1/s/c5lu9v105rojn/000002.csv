@@ -1,0 +1,6 @@
+"0","```r
+step_IIa <- left_join(step_II, park_ids, by = c('Park_trail' = 'Park_name', 'Agency_name' = 'Agency_name'))
+# Ensure all data joined properly
+step_IIa_unjoined <- step_IIa %>%
+  filter(is.na(Park_id) | is.na(Agency_id))
+```"

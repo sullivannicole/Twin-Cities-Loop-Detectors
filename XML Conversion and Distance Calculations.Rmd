@@ -1,0 +1,405 @@
+---
+title: "XML Configuration Conversion and Calculating Distances Between Nodes"
+output: html_document
+---
+
+## Conversion, excluding empty rnodes (no detectors)
+
+Code chunk below is used for creating configuration csv file from xml.
+
+xml is obtained from:  http://www.dot.state.mn.us/tmc/trafficinfo/developers.html
+
+Click on "metro_config.xml.gz" link and unzip.
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(xml2)
+library(data.table)
+library(geosphere)
+
+# temp <- tempfile()
+# download.file("http://data.dot.state.mn.us/iris_xml/metro_config.xml.gz", temp) # Download zipped gz file
+# data <- read.table(unz(temp, "metro_config.xml"))
+# unlink(temp)
+
+metro_config <- read_xml('Configuration Data/xml files/Configuration 2019-07-08.xml')
+metro_config_detectors <- data.frame(xml_path(xml_find_all(metro_config, "//detector")))
+
+#Grab all detector paths
+detector_rnode_paths <- metro_config_detectors %>%
+  mutate(Detector_Path = metro_config_detectors[[1]]) %>%
+  separate(1, into = c('front', 'tms_config', 'device', 'rnode', 'Detector'), sep = '/') %>%
+  unite(Rnode_path, front, tms_config, device, rnode, sep = '/') %>%
+  mutate(Rnode_path = trimws(Rnode_path)) %>%
+  mutate(Corridor_path = Rnode_path) %>%
+  separate(Corridor_path, into = c('front', 'tms_config', 'device', 'rnode'), sep = '/') %>%
+  unite(Corridor_path, front, tms_config, device, sep = '/') %>%
+  mutate(Corridor_path = trimws(Corridor_path))
+
+#Grab all detector attributes and combine with paths
+detectors <- xml_find_all(metro_config, '//detector')
+detector_names <- trimws(xml_attr(detectors, 'name'))
+detector_labels <- trimws(xml_attr(detectors, 'label'))
+detector_categories <- trimws(xml_attr(detectors, 'category'))
+detector_lanes <- trimws(xml_attr(detectors, 'lane'))
+detector_fields <- trimws(xml_attr(detectors, 'field'))
+detector_abandoned <- trimws(xml_attr(detectors, 'abandoned'))
+
+detector_attr <- data.frame(Detector_name = detector_names, Detector_label = detector_labels, Detector_category = detector_categories, Detector_lane = detector_lanes, Detector_field = detector_fields, Detector_abandoned = detector_abandoned)
+
+detector_rnode_paths_attrs <- bind_cols(detector_rnode_paths, detector_attr)
+
+#Grab all r_node paths
+metro_config_rnodes <- data.frame(xml_path(xml_find_all(metro_config, "//r_node")))
+
+rnode_paths <- metro_config_rnodes %>%
+  mutate(Rnode_path = metro_config_rnodes[[1]]) %>%
+  select(Rnode_path)
+
+#Grab all r_node attributes and combine with paths
+rnodes <- xml_find_all(metro_config, '//r_node')
+rnode_names <- trimws(xml_attr(rnodes, 'name'))
+rnode_n_types <- trimws(xml_attr(rnodes, 'n_type'))
+rnode_transitions <- trimws(xml_attr(rnodes, 'transition'))
+rnode_labels <- trimws(xml_attr(rnodes, 'label'))
+rnode_lons <- trimws(xml_attr(rnodes, 'lon'))
+rnode_lats <- trimws(xml_attr(rnodes, 'lat'))
+rnode_lanes <- trimws(xml_attr(rnodes, 'lanes'))
+rnode_shifts <- trimws(xml_attr(rnodes, 'shift'))
+rnode_s_limits <- trimws(xml_attr(rnodes, 's_limit'))
+rnode_stations <- trimws(xml_attr(rnodes, 'station_id'))
+rnode_attach_sides <- trimws(xml_attr(rnodes, 'attach_side'))
+
+rnode_attr <- data.frame(Rnode_Name = rnode_names, Rnode_n_type = rnode_n_types, Rnode_transition = rnode_transitions, Rnode_label = rnode_labels, Rnode_lon = rnode_lons, Rnode_lat = rnode_lats, Rnode_lanes = rnode_lanes, Rnode_shift = rnode_shifts, Rnode_slimit = rnode_s_limits, Rnode_station_id = rnode_stations, Rnode_attach_side = rnode_attach_sides)
+
+rnode_paths_attrs <- bind_cols(rnode_paths, rnode_attr)
+
+detector_rnodes_full <- left_join(detector_rnode_paths_attrs, rnode_paths_attrs, by = c('Rnode_path'))
+
+#Grab all corridors
+metro_config_corridors <- data.frame(xml_path(xml_find_all(metro_config, "//corridor")))
+
+corridor_paths <- metro_config_corridors %>%
+  mutate(Corridor_path = metro_config_corridors[[1]]) %>%
+  select(Corridor_path)
+
+#Grab corridor path attributes
+corridors <- xml_find_all(metro_config, '//corridor')
+corridor_routes <- trimws(xml_attr(corridors, 'route'))
+corridor_dirs <- trimws(xml_attr(corridors, 'dir'))
+
+corr_attrs <- data.frame(Corridor_route = corridor_routes, Corridor_dir = corridor_dirs)
+
+corr_paths_attrs <- bind_cols(corridor_paths, corr_attrs)
+
+detector_rnode_corrs <- left_join(detector_rnodes_full, corr_paths_attrs, by = c('Corridor_path'))
+
+detector_rnode_corrs_tidy <- detector_rnode_corrs %>%
+  select(-Rnode_path, -Detector, -Detector_Path, -Corridor_path, -rnode)
+
+```
+
+## Conversion, including empty rnodes
+
+This configuration is used for visualization purposes, as empty rnodes better connect detectors.
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(xml2)
+metro_config <- read_xml('metro_config.xml')
+metro_config_detectors <- data.frame(xml_path(xml_find_all(metro_config, "//detector")))
+
+#Grab all detector paths
+detector_rnode_paths <- metro_config_detectors %>%
+  mutate(Detector_Path = metro_config_detectors[[1]]) %>%
+  separate(1, into = c('front', 'tms_config', 'device', 'rnode', 'Detector'), sep = '/') %>%
+  unite(Rnode_path, front, tms_config, device, rnode, sep = '/') %>%
+  mutate(Rnode_path = trimws(Rnode_path))
+
+#Grab all detector attributes and combine with paths
+detectors <- xml_find_all(metro_config, '//detector')
+detector_names <- trimws(xml_attr(detectors, 'name'))
+detector_labels <- trimws(xml_attr(detectors, 'label'))
+detector_categories <- trimws(xml_attr(detectors, 'category'))
+detector_lanes <- trimws(xml_attr(detectors, 'lane'))
+detector_fields <- trimws(xml_attr(detectors, 'field'))
+detector_abandoned <- trimws(xml_attr(detectors, 'abandoned'))
+
+detector_attr <- data.frame(Detector_name = detector_names, Detector_label = detector_labels, Detector_category = detector_categories, Detector_lane = detector_lanes, Detector_field = detector_fields, Detector_abandoned = detector_abandoned)
+
+detector_rnode_paths_attrs <- bind_cols(detector_rnode_paths, detector_attr)
+
+#Grab all r_node paths
+metro_config_rnodes <- data.frame(xml_path(xml_find_all(metro_config, "//r_node")))
+
+rnode_paths <- metro_config_rnodes %>%
+  mutate(Rnode_path = metro_config_rnodes[[1]]) %>%
+  separate(1, into = c('front', 'tms_config', 'device', 'rnode', 'Detector'), sep = '/') %>%
+  unite(Corridor_path, front, tms_config, device, sep = '/') %>%
+  mutate(Corridor_path = trimws(Corridor_path)) %>%
+  select(Corridor_path, Rnode_path)
+
+#Grab all r_node attributes and combine with paths
+rnodes <- xml_find_all(metro_config, '//r_node')
+rnode_names <- trimws(xml_attr(rnodes, 'name'))
+rnode_n_types <- trimws(xml_attr(rnodes, 'n_type'))
+rnode_transitions <- trimws(xml_attr(rnodes, 'transition'))
+rnode_labels <- trimws(xml_attr(rnodes, 'label'))
+rnode_lons <- trimws(xml_attr(rnodes, 'lon'))
+rnode_lats <- trimws(xml_attr(rnodes, 'lat'))
+rnode_lanes <- trimws(xml_attr(rnodes, 'lanes'))
+rnode_shifts <- trimws(xml_attr(rnodes, 'shift'))
+rnode_s_limits <- trimws(xml_attr(rnodes, 's_limit'))
+rnode_stations <- trimws(xml_attr(rnodes, 'station_id'))
+rnode_attach_sides <- trimws(xml_attr(rnodes, 'attach_side'))
+
+rnode_attr <- data.frame(Rnode_Name = rnode_names, Rnode_n_type = rnode_n_types, Rnode_transition = rnode_transitions, Rnode_label = rnode_labels, Rnode_lon = rnode_lons, Rnode_lat = rnode_lats, Rnode_lanes = rnode_lanes, Rnode_shift = rnode_shifts, Rnode_slimit = rnode_s_limits, Rnode_station_id = rnode_stations, Rnode_attach_side = rnode_attach_sides)
+
+rnode_paths_attrs <- bind_cols(rnode_paths, rnode_attr)
+
+detector_rnodes_full <- left_join(rnode_paths_attrs, detector_rnode_paths_attrs, by = c('Rnode_path'))
+
+#Grab all corridors
+metro_config_corridors <- data.frame(xml_path(xml_find_all(metro_config, "//corridor")))
+
+corridor_paths <- metro_config_corridors %>%
+  mutate(Corridor_path = metro_config_corridors[[1]]) %>%
+  select(Corridor_path)
+
+#Grab corridor path attributes
+corridors <- xml_find_all(metro_config, '//corridor')
+corridor_routes <- trimws(xml_attr(corridors, 'route'))
+corridor_dirs <- trimws(xml_attr(corridors, 'dir'))
+
+corr_attrs <- data.frame(Corridor_route = corridor_routes, Corridor_dir = corridor_dirs)
+
+corr_paths_attrs <- bind_cols(corridor_paths, corr_attrs)
+
+detector_rnode_corrs <- left_join(detector_rnodes_full, corr_paths_attrs, by = c('Corridor_path'))
+
+detector_rnode_corrs_tidy <- detector_rnode_corrs %>%
+  select(-Rnode_path, -Detector, -Detector_Path, -Corridor_path)
+
+#write_csv(detector_rnode_corrs_tidy, 'Configuration of Metro Detectors.csv')
+```
+
+## Create a corridor cateogry and corridor index
+
+Can be done for both converted xmls.
+
+```{r}
+detector_rnode_corrs_tidy_ii <- detector_rnode_corrs_tidy %>%
+  mutate(Rnode_lat = as.character(Rnode_lat),
+         Rnode_lon = as.character(Rnode_lon)) %>%
+  mutate(Rnode_lat = as.numeric(Rnode_lat),
+         Rnode_lon = as.numeric(Rnode_lon)) %>%
+  mutate(Corridor_category = ifelse(Corridor_route == 'I-35' & Rnode_lat > 45, 'I35 north of cities',
+                                    ifelse(Corridor_route == 'I-35' & Rnode_lat <= 45, 'I35 south of cities',
+                                           ifelse(Corridor_route == 'T.H.5' & Rnode_lon < -93.3, '5 west of cities',
+                                                  ifelse(Corridor_route == 'T.H.5' & Rnode_lon > -93.3, '5 east of cities', 'Other'))))) %>%
+  group_by(Corridor_route, Corridor_dir, Corridor_category) %>%
+  mutate(Corridor_index = row_number())
+
+```
+
+## Calculate distance between upstream detector and detector of interest (use converted xml that excludes empty rnodes)
+
+Where upstream detector does not exist, or where distance is beyond 3 miles, interpolate so as not to assume large VMT merely because vehicles crossed an isolated detector.
+
+```{r}
+# Select stations (want distance between stations, not between ramps etc.)
+config_stations <- detector_rnode_corrs_tidy_ii %>%
+  filter(Rnode_n_type == "Station")
+
+# Conflate lanes so they have the same upstream detector; create index
+config_conflated <- detector_rnode_corrs_tidy_ii %>%
+  filter(Rnode_n_type == "Station") %>%
+  select(Corridor_route, Corridor_dir, Corridor_category, Rnode_lat, Rnode_lon) %>%
+  unique() %>%
+  group_by(Corridor_route, Corridor_dir, Corridor_category) %>%
+  mutate(Corridor_conflated_index = row_number())
+
+# Join index to full dataset
+config_pre_lag <- left_join(config_stations, config_conflated, by = c("Corridor_route", "Corridor_dir", "Corridor_category", "Rnode_lat", "Rnode_lon"))
+
+# Create lagged index in order to connect lat/longs of upstream detector to detector of interest
+config_lag <- config_conflated %>%
+  ungroup() %>%
+  mutate(Corridor_conflated_index = Corridor_conflated_index - 1) %>%
+  rename(Rnode_lat_upstream = Rnode_lat,
+         Rnode_lon_upstream = Rnode_lon)
+
+# Join upstream detectors to full detector dataset
+config_full <- left_join(config_pre_lag, config_lag, by = c("Corridor_route", "Corridor_conflated_index", "Corridor_dir", "Corridor_category"))
+
+# Find distance between upstream detector and detector of interest for every detector in dataset - for loop vs. purrr::map
+# config_length <- c(1:nrow(config_stations))
+# dist_results <- list()
+# 
+# for (i in config_length) {
+# 
+# config_slice <- config_full %>%
+#   ungroup() %>%
+#   slice(i)
+# 
+# config_x <- c(config_slice$Rnode_lon, config_slice$Rnode_lat)
+# config_y <- c(config_slice$Rnode_lon_upstream, config_slice$Rnode_lat_upstream)
+# 
+# dist_results[i] <- distm(config_x, config_y, fun = distHaversine)/1609.344
+# }
+
+config_length <- c(1:nrow(config_stations))
+dist_results <- list()
+
+dist_results <- purrr::map(config_length, function(i){
+  config_slice <- config_full %>%
+    ungroup() %>%
+    slice(i)
+
+config_x <- c(config_slice$Rnode_lon, config_slice$Rnode_lat)
+config_y <- c(config_slice$Rnode_lon_upstream, config_slice$Rnode_lat_upstream)
+
+distm(config_x, config_y, fun = distHaversine)/1609.344
+})
+
+options(scipen = 999)
+distance_df <- data.frame(matrix(unlist(dist_results), nrow = length(dist_results), byrow = T)) %>%
+  rename(distance = 1)
+
+config_dist <- bind_cols(config_stations, distance_df)
+
+# If there is no upstream detector, or distance attributed is greater than 1.5 mi, interpolate with the corridor median
+# If, after interpolating with corridor median, distance is still missing (ie NA for entire corridor), or distance attributed is greater than 3 (want a conservative assumption for how many miles of travel volume at a particular sensor depicts), interpolate with metro-wide network median
+# As of July 2019, this results in a max distance, metro-wise of 1.45 mi
+config_dist_inter <- config_dist %>%
+  group_by(Corridor_route, Corridor_dir, Corridor_category) %>%
+  mutate(distance = ifelse(is.na(distance) | distance > 1.5, median(distance, na.rm = T), distance)) %>%
+  ungroup() %>%
+  mutate(distance = ifelse(is.na(distance) | distance > 3, median(distance, na.rm = T), distance))
+
+# Check interpolation interpolated all NAs
+config_dist_inter %>%
+  filter(is.na(distance))
+
+fwrite(config_dist_inter, "Configuration Data/Configuration of Metro Detectors 2019-07-08.csv")
+```
+
+# Create SpatialLinesDataFrame using raster, and sf
+
+```{r}
+# library(sp)
+# library(raster)
+# library(leaflet)
+# library(sf)
+# library(tidyverse)
+# 
+# config_df <- config %>%
+#   unite(Corridor_ID, Corridor_route, Corridor_dir, Corridor_category) %>%
+#   group_by(Corridor_ID) %>%
+#   summarize(Detectors = paste(Detector_name, collapse = ", ")) %>%
+#   rename(ID = Corridor_ID) %>%
+#   as.data.frame()
+# 
+# config_ln <- config %>%
+#   unite(Corridor_ID, Corridor_route, Corridor_dir, Corridor_category) %>%
+#   dplyr::select(Rnode_lon, Rnode_lat, Corridor_ID)
+# 
+# config_split <- split(config_ln, config_ln$Corridor_ID)
+# 
+# config_line <- vector("list", length(config_split))
+# arg_length <- c(1:length(config_split))
+# 
+# create_line <- function(i) {
+#   
+#   config_1 <- config_split[[i]] %>% dplyr::select(-Corridor_ID)
+#   config_line[[i]] <<- Line(config_1)
+# }
+# 
+# # Create line object
+# config_line <- map(arg_length, create_line)
+# 
+# config_lines <- vector("list", length(config_line))
+# 
+# # Add ID to Line object
+# create_lines_id <- function(i) {
+#   
+#  config_1 <- config_line[[i]]
+#  config_lines[[i]] <- Lines(config_1, ID = config_df %>% slice(i) %>% dplyr::select(ID))
+# }
+# 
+# config_lines <- map(arg_length, create_lines_id)
+# 
+# config_lines_sp <- SpatialLines(config_lines)
+# config_spldf <- SpatialLinesDataFrame(config_lines_sp, config_df, match.ID = "ID")
+# 
+# config_spldf@proj4string <- CRS("+init=epsg:4267")
+# 
+# writeOGR(config_spldf, "Configuration Data", "Configuration Test.shp", "ESRI Shapefile")
+# 
+# plot(config_spldf)
+```
+
+# Create an sp lines object
+
+```{r}
+
+# config_df <- config %>%
+#   unite(Corridor_ID, Corridor_route, Corridor_dir, Corridor_category) %>%
+#   group_by(Corridor_ID) %>%
+#   summarize(Detectors = paste(Detector_name, collapse = ", ")) %>%
+#   rename(ID = Corridor_ID) %>%
+#   as.data.frame()
+# 
+# config_ln <- config %>%
+#   unite(Corridor_ID, Corridor_route, Corridor_dir, Corridor_category) %>%
+#   dplyr::select(Rnode_lon, Rnode_lat, Corridor_ID)
+# 
+# config_split <- split(config_ln, config_ln$Corridor_ID)
+# 
+# config_line <- vector("list", length(config_split))
+# arg_length <- c(1:length(config_split))
+# 
+# create_line_st <- function(i) {
+#   
+#   config_1 <- as.matrix(config_split[[i]] %>% dplyr::select(-Corridor_ID))
+#   config_line[[i]] <- st_linestring(config_1)
+# }
+# 
+# # Create line object
+# config_line <- map(arg_length, create_line_st)
+# 
+# (ln_strg <- st_sfc(config_line))
+# lnstr_sfg1 <- st_linestring(matrix(runif(6), ncol=2)) 
+# lnstr_sfg2 <- st_linestring(matrix(runif(6), ncol=2)) 
+# (lnstr_sfc <- st_sfc(lnstr_sfg1, lnstr_sfg2))
+# (lnstr_sf <- st_sf(dfr , lnstr_sfc))
+# (config_sf <- st_sf(config_df, ln_strg))
+# 
+# config_sf@proj4string <- CRS("+init=epsg:4267")
+# st_write(config_sf, "Configuration Data/Config Sf Test.shp")
+# 
+
+
+```
+
+# Create SpatialLinesDataFrame configuration using inlabru
+
+```{r}
+library(inlabru)
+
+# Conversion to SpatialLinesDataFrame without CRS
+config_sline <- config_full %>%
+  filter(!is.na(Rnode_lat_upstream) & !is.na(Rnode_lon_upstream)) # Remove nodes with no upstream detector (no line can be created)
+
+spl <- sline(config_sline, start.cols = c("Rnode_lon", "Rnode_lat"),
+             end.cols = c("Rnode_lon_upstream", "Rnode_lat_upstream"))
+
+# Add CRS projection
+proj4string(spl) <- CRS("+init=epsg:4267")
+
+writeOGR(spl, "Configuration Data", "Sline test", "ESRI Shapefile")
+```
+
+

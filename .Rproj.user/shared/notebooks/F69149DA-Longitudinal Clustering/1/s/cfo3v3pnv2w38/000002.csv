@@ -1,0 +1,20 @@
+"0","```r
+set.seed(410)
+kml3d(cld_snc, nbClusters = 8) # Any number of clusters exceeding 6 must be specified using nbClusters
+
+```"
+"1"," ~ Fast KmL3D ~
+********************
+S
+"
+"0","```r
+#choice(cld_snc)
+# Take a look at 7 clusters
+set.seed(410)
+acs_cluster$clusters <- getClusters(cld_snc, 8)
+cluster_snc <- acs_cluster %>%
+  filter(!is.na(clusters)) %>%
+  gather(2:109, key = \"Variable_year\", value = \"Value\") %>%
+  separate(Variable_year, into = c(\"Variable\", \"Year\"), sep = -4)
+write_csv(cluster_snc, \"Results/Longitudinal Clustering/8-Clusters, 2010-2017, k-NN Imputation.csv\")
+```"

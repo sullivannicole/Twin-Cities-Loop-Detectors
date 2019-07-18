@@ -1,0 +1,4 @@
+"0","step_IIa <- left_join(step_II, park_ids, by = c('Park_trail' = 'Park_name', 'Agency_name' = 'Agency_name'))"
+"0","# Ensure all data joined properly - 'step_IIa_unjoined' df should be length 0"
+"0","step_IIa_unjoined <- step_IIa %>%"
+"0","  filter(is.na(Park_id) | is.na(Agency_id))"

@@ -1,0 +1,23 @@
+"0","```r
+# Model remaining variables on clusters to see if there are any meaningful differences
+library(nnet)
+
+summary(cl00_17)
+
+cl00_17$clusters2 <- relevel(cl00_17$clusters, ref = \"A\")
+
+test <- multinom(clusters2 ~ perc_poc + perc_65up + rent + emv + median_hhi + perc_new_bld + percentPOC2000 + perSixFive2000 + medHHinc2000 + MedianValue2000 + rent2000 + builtSince00_2000, data = cl00_17)
+
+summary(test)
+
+z <- summary(test)$coefficients/summary(test)$standard.errors
+z
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
+
+p1<- -1317.422+25*-6.566583
+p2 <- -1317.422+24*-6.566583
+
+exp(-5.895521)
+```"

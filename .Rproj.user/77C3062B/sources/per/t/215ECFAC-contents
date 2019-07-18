@@ -1,0 +1,557 @@
+---
+title: "Calculating Measures"
+output: html_document
+---
+
+:: --------------------------------------------------------------
+
+# BACKGROUND - speed & performance measures calculations
+
+:: --------------------------------------------------------------
+
+## Volume and Occupancy Processing
+
+Code below takes the full 1 million+ length volume dataset and 1-million+ length occupancy dataset pulled from JSON feed for the same sensor, and converts them to one dataset containing estimated speed of traffic at the sensor over 10-minute intervals.  The speed equation is:
+
+$$\frac{Vehicles Per Hour*Vehicle Length}{5280*Occupancy Percentage} $$
+
+or
+$$\frac{Flow}{Density} $$
+
+The 'Vehicles Per Hour' variable is calculated by summing all the vehicles over the 15-minute interval, and then multiplying that by four.  The 'Vehicle Length' variable is a static field in the sensor configuration dataset.  The 'Occupancy Percentage' variable is calculated by summing all the occupancy values over the 15-minute interval, and then dividing by 54,000 (1,800 scans in 30 seconds*30 periods in 15-minute interval).
+
+**A note on the term 'occupancy'**
+
+The term 'occupancy' does not here refer to the occupants of a vehicle but rather the occupancy of the sensor, or how long the sensor was 'occupied'.  In a 30-second time period, 1800 scans are produced (60 per second), and each scan is binary:  either the sensor is occupied or not.  Therefore, a sensor occupied for 1 second within the 30-second time period would have a value of 60.  Raw occupancy values can be converted to percentages:
+
+$$\frac{Occupancy}{1800}*100% $$
+The resulting percentage is the percentage of time in that 30 seconds that the sensor was 'occupied'.
+
+**A note on interpolation**
+
+Where nulls exist (vs. a zero measurement), it is assumed the connection was disrupted and no measurement was taken.  For 15-minute intervals where other values exist, the nulls are interpolated with the **average** of the other values within the interval.  Impossible values are also interpolated with the mean of the interval.  Impossible values are raw occupancy values greater than 1800 (given that only 1800 scans are taken in a 30-second period).  If an entire interval contains only nulls, it is converted to 'NA' and no values within the interval are interpolated.
+
+Note that a variable is created containing the percentage of nulls/impossible values in that interval; therefore, one can choose to exclude intervals with interpolation rates above a certain threshold of choice (eg if more than, say, 30% of the data is missing).
+
+```{r}
+# Pull configuration once per session
+library(tidyverse)
+detector_config <- fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv', key = "")
+
+detector_field <- detector_config %>%
+  select(Detector_name, Detector_field)
+```
+
+```{r}
+corridor <- 'T.H.280'
+year <- 2018
+
+# Create directory for new corridor - done once before measures processing
+new_dir <- paste('Measures Data/', year, '/', corridor, sep = '')
+
+dir.create(new_dir)
+
+#corridor_vc <- as_tibble(list.files(paste('Volume-Occupancy Data/2018/', 'U.S. 169', sep = '')))
+```
+
+:: --------------------------------------------------------------
+
+# IMPORT - libraries
+
+:: --------------------------------------------------------------
+
+```{r}
+library(tidyverse)
+library(jsonlite)
+library(stringr)
+library(timeDate)
+library(lubridate)
+library(rlang)
+library(parallel)
+library(data.table)
+library(microbenchmark)
+library(foreach)
+library(doParallel)
+```
+
+::--------------------------------------------
+
+# ARGUMENTS - corridor_wrap
+
+::--------------------------------------------
+
+```{r}
+year <- 2018
+corridor <- "T.H.610"
+ref_period_start <- 10
+ref_period_end <- 13
+
+# corridor_args <- bind_cols(as_tibble(c(corridor = "T.H.47", year = "2018", ref_period_start = ref_period_start, ref_period_end = ref_period_end)), as_tibble(c(corridor = "T.H.55", year = "2018", ref_period_start = ref_period_start, ref_period_end = ref_period_end))) %>% gather(1:2, key = "corridor", value = "variable")
+# 
+# for (i in seq_along(length_corridors)) {corridor_wrap(corridor_args[[i]])}
+
+corridor_wrap(corridor, year, ref_period_start, ref_period_end)
+# corridor_args[[1]]
+```
+
+::--------------------------------------------
+
+# FUNCTIONS - corridor_wrap and sensor_summary
+
+::--------------------------------------------
+
+corridor_wrap is a wrapper for sensor_summary.  Currently the function is not self-contained.  sensor_summary is a dependency.
+
+```{r}
+
+corridor_wrap <- function(corridor, year, ref_period_start, ref_period_end) {
+  
+  sensor_summary <- function(sensor, corridor, year, ref_period_start, ref_period_end) {
+  library(tidyverse)
+  library(data.table)
+  library(lubridate)
+detector_config <- data.table(fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv'))
+detector_select <- detector_config[Detector_name == sensor] # Select only the relevant sensor
+detector_field <- data.table(detector_select %>% select(Detector_name, Detector_field, distance), key = "Detector_name") # Select only field length and sensor name  
+  sensor_var <- sensor
+  corridor_var <- corridor
+  year_var <- year
+  ref_period_start <- ref_period_start
+  ref_period_end <- ref_period_end
+  interval_length <- 20 # 20 30-second periods in the interval (10-minutes)
+
+csv_path <- paste('Measures Data/', year_var, '/', corridor_var, '/', year_var, ' 10-minute Interval Measures ', sensor_var, '.csv', sep = '')
+
+v_sensor <- fread(paste('Volume-Occupancy Data/', year_var, '/', corridor_var, '/Sensor ', sensor_var, ' v30.csv', sep = ''))
+c_sensor <- fread(paste('Volume-Occupancy Data/', year_var, '/', corridor_var, '/Sensor ', sensor_var, ' c30.csv', sep = ''))
+
+cv <- left_join(v_sensor, c_sensor, by = c('Date', 'Time', 'Sensor'))
+
+times <- as.data.frame(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+times_tidy <- times %>%
+  mutate(Time = times[[1]]) %>%
+  mutate(Time = format(Time, format = '%H:%M:%S')) %>%
+  select(Time) %>%
+  mutate(Time_id = row_number()) %>%
+  mutate(Interval = cut(Time_id, seq(0, 2880, 20)))
+
+cv_tidy <- cv %>%
+  mutate(Time = as.character(Time),
+         Sensor = as.character(Sensor)) %>%
+  filter(Time != 'Entire day missing') %>%
+  mutate(Value.x = as.numeric(Value.x),
+         Value.y = as.numeric(Value.y))
+
+cv_intervals <- left_join(cv_tidy, times_tidy, by = 'Time')
+
+# Classify intervals as containing data or missing data
+null_classifier <- data.table(cv_intervals %>%
+    mutate(Date2 = Date,
+         Time2 = Time) %>%
+    unite(Date_Time, Date2, Time2, sep = ' ') %>%
+    rename(Volume = Value.x,
+         Occupancy = Value.y) %>%
+    select(-Ext.x, -Ext.y, -Time_id) %>%
+    mutate(Date_Time = as_datetime(Date_Time),
+         Volume_status = ifelse(is.na(Volume), 1, 0),
+         Occupancy_status = ifelse(is.na(Occupancy), 1, 0)), key = c("Date", "Interval"))
+
+# Count nulls in period
+# microbenchmark(null_count <- null_classifier %>%
+#   group_by(Date, Interval) %>%
+#   mutate(Interval_length = length(Interval),
+#          Start_time = min(Date_Time),
+#          End_time = max(Date_Time),
+#          Volume_total_in_period = sum(Volume, na.rm = T),
+#          Volume_count_of_nulls = sum(Volume_status),
+#          Occupancy_total_in_period = sum(Occupancy, na.rm = T),
+#          Occupancy_count_of_nulls = sum(Occupancy_status)) %>%
+#   ungroup(),
+#   times = 3)
+
+# Compute total amount of missing data
+null_count <- null_classifier[,
+                                   .(Start_time = min(Date_Time),
+                                     End_time = max(Date_Time),
+                                     Volume_total_in_period = sum(Volume, na.rm = T),
+                                     Volume_count_of_nulls = sum(Volume_status),
+                                     Occupancy_total_in_period = sum(Occupancy, na.rm = T),
+                                     Occupancy_count_of_nulls = sum(Occupancy_status)),
+                                   by = .(Date, Interval)]
+
+# Join percentage variables back to raw data
+null_count_full <- null_classifier[null_count]
+
+# Prep for median interpolation
+null_prep <- data.table(null_count_full[, Volume_percent_interpolated_in_interval := Volume_count_of_nulls/interval_length*100][, Occupancy_percent_interpolated_in_interval := Occupancy_count_of_nulls/interval_length*100], key = c("Date", "Interval"))
+
+# Create columns with period medians
+period_medians <- data.table(null_prep[,
+                           .(Volume_median = median(Volume, na.rm = T),
+                             Occupancy_median = median(Occupancy, na.rm = T)),
+                           by = .(Date, Interval)], key = c("Date", "Interval"))
+  
+vc_medians <- null_prep[period_medians]
+
+# Interpolate NULLs with median
+vc_interpolated <- vc_medians[, Volume_interpolated_nulls := ifelse(is.na(Volume), Volume_median, Volume)][, Occupancy_interpolated_nulls := ifelse(is.na(Occupancy), Occupancy_median, Occupancy)]
+
+# Sum volume and occupancy to 10-minute period totals
+vc_summed <- data.table(vc_interpolated[,
+                             .(Volume_with_interpolation = sum(Volume_interpolated_nulls),
+                               Occupancy_with_interpolation = sum(Occupancy_interpolated_nulls)),
+                             by = .(Date, Interval)], key = c("Date", "Interval"))
+
+# Select only needed variables, and aggregate up to 10-minute periods
+vc_pared <- data.table(vc_interpolated %>% select(Sensor, Date, Start_time, End_time, Interval, Volume_percent_interpolated_in_interval, Occupancy_percent_interpolated_in_interval) %>% unique(), key = c("Date", "Interval"))
+
+# Join needed variables to aggregated volume and occupancy
+vc_periods <- data.table(vc_pared[vc_summed], key = "Sensor")
+vc_field <- vc_periods[data.table(detector_field, key = "Detector_name")]
+
+# Calculate speed!
+speed <- data.table(vc_field[, Speed := ifelse(Volume_with_interpolation != 0, (Volume_with_interpolation*6*Detector_field)/(5280*(Occupancy_with_interpolation/(1800*20))), 0)], key = "Sensor") # Vehicles per hour = Volume in 10 min * 6; Occupancy (per hour is assumed to be same as per 10-min interval, since it's a %) = Occupancy in 10 min interval/(Total scans in 30 seconds (1800) * 20 30-sec periods in one 10-min interval) - note that these coefficients do NOT need to be changed if interval changes, since an interval change results in an increase of the multiplier for volume (increase of intervals in an hour), but a DECREASE of the denominator (occupancy's) multiplier
+
+# Calculate reference speed
+speed_time <- speed %>%
+  separate(Start_time, into = c('date', 'Start_time'), sep = ' ') %>%
+  separate(End_time, into = c('date', 'End_time'), sep = ' ')
+
+#Get start time as an increment of the 24 hours of the day
+# Get peak time speeds only
+ref_speed <- speed_time[, Start_time_h := as.numeric(hms(Start_time))/3600][Start_time_h <= ref_period_end & Start_time_h >= ref_period_start, ][, Ref_speed := median(Speed, na.rm = T)][, Ref_speed_90 := Ref_speed * 0.9][, Ref_speed_av := mean(Speed, na.rm = T)]
+
+ref_spd <- data.table(ref_speed %>%
+  separate(Date, into = c('Year', 'Month_day'), sep = 4) %>%
+  select(Ref_speed, Ref_speed_90, Ref_speed_av, Sensor) %>%
+  unique(), key = "Sensor")
+
+measures_df <- speed[ref_spd]
+#measures_field <- left_join(measures_df, detector_field, by = c("Sensor" = "Detector_name"))
+
+measures <- measures_df[, Delay := ifelse(Ref_speed_90 < Speed, 0, (Ref_speed_90-Speed)*Volume_with_interpolation)][, Ref_speed_less_current_speed := ifelse(Ref_speed_90 < Speed, 0, (Ref_speed_90-Speed))][, VMT := Volume_with_interpolation*distance]
+
+fwrite(measures, csv_path)
+
+  }
+  
+  #------------------
+  # sensory_summary function delineation ends - below begins iteration of function over corridor
+  #-----------------------
+
+corridor_vc <- as_tibble(list.files(paste('Volume-Occupancy Data/', year, '/', corridor, sep = ''))) %>%
+  separate(value, into = c('Prefix', 'sensor'), sep = ' ') %>%
+  select(sensor) %>%
+  unique() %>%
+  mutate(corridor = corridor,
+         year = as.character(year),
+         ref_period_start = ref_period_start,
+         ref_period_end = ref_period_end)
+
+sensor_list <- split(corridor_vc, seq(nrow(corridor_vc)))
+
+num_cores <- detectCores() # Check how many cores are present - trying to use more than this many won't provide any benefit
+registerDoParallel(num_cores)
+
+length_sensor_l <- c(1:length(sensor_list))
+
+foreach (i = seq_along(length_sensor_l)) %dopar% {
+
+  do.call(sensor_summary, sensor_list[[i]])
+  }
+
+#purrr::map(length_sensor_l, function(i) do.call(sensor_summary, sensor_list[[i]]))
+
+}
+
+```
+
+# Sensor_summary written in tidyverse
+
+```{r}
+
+null_classifier <- cv_intervals_field %>%
+  mutate(Date2 = Date,
+         Time2 = Time) %>%
+  unite(Date_Time, Date2, Time2, sep = ' ') %>%
+  rename(Volume = Value.x,
+         Occupancy = Value.y) %>%
+  mutate(Date_Time = as_datetime(Date_Time),
+         Volume_status = ifelse(is.na(Volume), 1, 0),
+         Occupancy_status = ifelse(is.na(Occupancy), 1, 0)) %>%
+  group_by(Date, Interval) %>%
+  mutate(Interval_length = length(Interval),
+         Start_time = min(Date_Time),
+         End_time = max(Date_Time),
+         Volume_interval_status = sum(Volume),
+         Volume_count_of_nulls = sum(Volume_status),
+         Occupancy_interval_status = sum(Occupancy),
+         Occupancy_count_of_nulls = sum(Occupancy_status)) %>%
+  ungroup() %>%
+  mutate(Volume_non_interpolated_nulls = ifelse(is.na(Volume), 0, Volume),
+         Occupancy_non_interpolated_nulls = ifelse(is.na(Occupancy), 0, Occupancy),
+         Volume_percent_interpolated_in_interval = Volume_count_of_nulls/Interval_length*100,
+         Occupancy_percent_interpolated_in_interval = Occupancy_count_of_nulls/Interval_length*100) %>%
+  group_by(Date, Interval) %>%
+  mutate(Volume_to_interpolate_nulls = ifelse(is.na(Volume_interval_status) & Volume_count_of_nulls != Interval_length, sum(Volume_non_interpolated_nulls)/(Interval_length-Volume_count_of_nulls), NA),
+        Occupancy_to_interpolate_nulls = ifelse(is.na(Occupancy_interval_status) & Occupancy_count_of_nulls != Interval_length, sum(Occupancy_non_interpolated_nulls)/(Interval_length-Occupancy_count_of_nulls), NA)) %>%
+  ungroup() %>%
+  mutate(Volume_interpolated_nulls = ifelse(is.na(Volume), Volume_to_interpolate_nulls, Volume),
+         Occupancy_interpolated_nulls = ifelse(is.na(Occupancy) | Occupancy > 1800, Occupancy_to_interpolate_nulls, Occupancy)) %>%
+  group_by(Date, Interval) %>%
+  mutate(Interval_volume_no_interpolation = sum(Volume_non_interpolated_nulls),
+         Interval_volume_with_interpolation = ifelse(is.na(Volume_interval_status) & Volume_count_of_nulls != Interval_length, sum(Volume_interpolated_nulls), sum(Volume_non_interpolated_nulls)),
+         Interval_occupancy_no_interpolation = sum(Occupancy_non_interpolated_nulls),
+         Interval_occupancy_with_interpolation = ifelse(is.na(Occupancy_interval_status) & Occupancy_count_of_nulls != Interval_length, sum(Occupancy_interpolated_nulls), sum(Occupancy_non_interpolated_nulls))) %>%
+   ungroup() %>%
+  select(Sensor, Date, Start_time, End_time, Interval, Interval_volume_with_interpolation, Interval_occupancy_with_interpolation, Detector_field, Interval_length, Volume_percent_interpolated_in_interval, Occupancy_percent_interpolated_in_interval) %>%
+  unique() %>%
+  mutate(Speed = ifelse(Interval_occupancy_with_interpolation != 0, (Interval_volume_with_interpolation*120/Interval_length*Detector_field)/(5280*(Interval_occupancy_with_interpolation/(1800*Interval_length))), 0))
+
+ref_speed <- speed_summarized %>%
+  separate(Start_time, into = c('date', 'Start_time'), sep = ' ') %>%
+  separate(End_time, into = c('date', 'End_time'), sep = ' ') %>%
+  mutate(Start_time_h = as.numeric(hms(Start_time))/3600) %>% # Get start time as an increment of the 24 hours of the day
+  filter(Start_time_h < 6) %>% # Get peak time speeds only
+  mutate(Ref_speed = median(Speed),
+         Ref_speed_90 = Ref_speed * 0.9,
+         Ref_speed_av = mean(Speed)) %>%
+  separate(Date, into = c('Year', 'Month_day'), sep = 4) %>%
+  select(Ref_speed, Ref_speed_90, Ref_speed_av, Sensor) %>%
+  unique()
+
+measures_df <- left_join(speed_summarized, ref_speed, by = c('Sensor' = 'Sensor'))
+
+measures  <- measures_df %>%
+  mutate(Delay = ifelse(Ref_speed_90 < Speed, 0, (Ref_speed_90-Speed)*Interval_volume_with_interpolation),
+         VMT = Interval_volume_with_interpolation * 0.26)
+
+write_csv(measures, csv_path)
+
+}
+
+fwrite(null_classifier, "Speed Comparison Test.csv")
+```
+
+```{r}
+library(tidyverse)
+library(data.table)
+setwd('Measures Data/2018/U.S.169')
+measures <- list.files(pattern = '*.csv')
+measures_l <- map(set_names(measures, gsub('.csv$', '', measures)), fread)
+measures_df <- do.call(rbind, measures_l)
+```
+
+
+```{r}
+fwrite(measures_df, "Measures by Corridor/U.S.169 Measures.csv")
+
+```
+# Sum sensor-level data bt month
+
+```{r}
+library(data.table)
+library(tidyverse)
+# corr <- fread("Measures by Corridor/T.H.252 Measures.csv")
+# 
+# corr_slice <- corr %>%
+#   slice(1)
+# 
+# corr_w_month <- corr[, Month := substring(Date, 5, 6)]
+# 
+# options(scipen = 999)
+# corr_month_sum <- corr_w_month[,
+#                                .(Delay_sum = sum(Delay, na.rm = T),
+#                                VMT_sum = sum(VMT, na.rm = T),
+#                                Volume_sum = sum(Volume_with_interpolation, na.rm = T)),
+#                              by = .(Sensor, Month)]
+# 
+# corr_month_attr <- corr_month_sum[, Month := as.numeric(Month)][, Month_abb := month.abb[Month]]
+# 
+# fwrite(corr_month_sum, "Measures by Month/I-35 Measures by Month.csv")
+
+setwd("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Measures by Corridor/")
+
+file_list <- list.files(pattern = "*.csv")
+corr_month_attr <- vector("list", length(file_list)) # Set the list at length of file_list
+
+for(i in file_list) {
+
+  corr <- fread(paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Measures by Corridor/", i))
+  corr_w_month <- corr[, Month := substring(Date, 5, 6)]
+
+options(scipen = 999)
+corr_month_sum <- corr_w_month[,
+                               .(Delay_sum = sum(Delay, na.rm = T),
+                               VMT_sum = sum(VMT, na.rm = T),
+                               Volume_sum = sum(Volume_with_interpolation, na.rm = T)),
+                             by = .(Sensor, Month)]
+
+corr_month_attr[[i]] <- corr_month_sum[, Month := as.numeric(Month)][, Month_abb := month.abb[Month]]
+
+}
+
+network_month <- do.call(rbind, corr_month_attr)
+
+fwrite(network_month, "Measures by Month/2018 Network Measures.csv")
+
+
+```
+# Sum sensor-level data by month, and day type, and time of day category
+
+```{r}
+library(lubridate)
+library(data.table)
+library(tidyverse)
+# corr <- fread("Measures by Corridor/T.H.252 Measures.csv")
+# 
+# # Create month variable; create Time_of_day variable that returns categories "AM Peak", "PM Peak" & "Weekend & Non-peak"
+# corr_categories <- corr[, Month := substring(Date, 5, 6)][, Day := wday(ymd(Date), abbr = T, label = T)][, Day_type := ifelse(Day == "Sun" | Day == "Sat", "Weekend", "Weekday")][, Start_hour := hour(hms(substring(Start_time, 12, 19)))][, Time_of_day := ifelse(Start_hour >= 6 & Start_hour <= 10 & Day_type == "Weekday", "AM Peak (6-10 AM)", ifelse(Start_hour >= 3 & Start_hour <= 7 & Day_type == "Weekday", "PM Peak (3-7 PM)", ifelse(Day_type == "Weekend", "Weekend", "Non-peak on Weekdays")))]
+# 
+# options(scipen = 999)
+# corr_sum <- corr_categories[,
+#                                .(Delay_sum = sum(Delay, na.rm = T),
+#                                VMT_sum = sum(VMT, na.rm = T),
+#                                Volume_sum = sum(Volume_with_interpolation, na.rm = T)),
+#                              by = .(Sensor, Month, Time_of_day)]
+# 
+# corr_month_attr[[i]] <- corr_sum[, Month := as.numeric(Month)][, Month_abb := month.abb[Month]]
+
+
+setwd("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Measures by Corridor/")
+
+file_list <- list.files(pattern = "*.csv")
+corr_month_attr <- vector("list", length(file_list)) # Set the list at length of file_list
+
+for(i in file_list) {
+
+  corr <- fread(paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Measures by Corridor/", i))
+# Create month variable; create Time_of_day variable that returns categories "AM Peak", "PM Peak" & "Weekend & Non-peak"
+corr_categories <- corr[, Month := substring(Date, 5, 6)][, Day := wday(ymd(Date), abbr = T, label = T)][, Day_type := ifelse(Day == "Sun" | Day == "Sat", "Weekend", "Weekday")][, Start_hour := hour(hms(substring(Start_time, 12, 19)))][, Time_of_day := ifelse(Start_hour >= 6 & Start_hour <= 10 & Day_type == "Weekday", "AM Peak (6-10 AM)", ifelse(Start_hour >= 3 & Start_hour <= 7 & Day_type == "Weekday", "PM Peak (3-7 PM)", ifelse(Day_type == "Weekend", "Weekend", "Non-peak on Weekdays")))]
+
+options(scipen = 999)
+corr_sum <- corr_categories[,
+                               .(Delay_sum = sum(Delay, na.rm = T),
+                               VMT_sum = sum(VMT, na.rm = T),
+                               Volume_sum = sum(Volume_with_interpolation, na.rm = T)),
+                             by = .(Sensor, Month, Time_of_day)]
+
+corr_month_attr[[i]] <- corr_sum[, Month := as.numeric(Month)][, Month_abb := month.abb[Month]]
+
+}
+
+network_month <- do.call(rbind, corr_month_attr)
+
+fwrite(network_month, "Measures by Month/2018 Network Measures with Categories.csv")
+
+```
+
+
+### create new sensor_summary with data.table
+## vmt with correct distance
+
+```{r}
+detector_config <- data.table(fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv'))
+
+detector_select <- detector_config[Detector_name == sensor] # Select only the relevant sensor
+detector_field <- data.table(detector_select %>% select(Detector_name, Detector_field), key = "Detector_name") # Select only field length and sensor name
+
+sensor_summary <- function(sensor, corridor, year) {
+  
+sensor <- 6168
+corridor <- "T.H.212"
+year <- 2018
+  
+  sensor_var <- sensor
+  corridor_var <- corridor
+  year_var <- year
+
+csv_path <- paste('Measures Data/', year_var, '/', corridor_var, '/', year_var, ' 10-minute Interval Measures ', sensor_var, '.csv', sep = '')
+
+v_sensor <- fread(paste('Volume-Occupancy Data/', year_var, '/', corridor_var, '/Sensor ', sensor_var, ' v30 .csv', sep = ''), key = c("Date", "Time", "Sensor"))
+c_sensor <- fread(paste('Volume-Occupancy Data/', year_var, '/', corridor_var, '/Sensor ', sensor_var, ' c30 .csv', sep = ''), key = c("Date", "Time", "Sensor"))
+
+cv <- v_sensor[c_sensor]
+
+# Create a dataset of 30 second time intervals
+times <- data.table(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+# Format the times and group by periods (10 minute periods)
+times_name <- times[, Time := times[[1]]]
+times_fmt <- times_name[, Time := format(Time, format = '%H:%M:%S')]
+times_var <- times_fmt[, list(Time)]
+time_id <- data.table(times_var %>% mutate(Time_id = row_number()))
+times_tidy <- data.table(time_id[, Interval := cut(Time_id, seq(0, 2880, 20))], key = "Time") # 10-minute periods
+
+cv_time_char <- cv[, Time := as.character(Time)]
+cv_sensor_char <- cv_time_char[, Sensor := as.character(Sensor)]
+cv_non_missing <- cv_sensor_char[Time != "Entire day missing"]
+cv_tidy <- data.table(cv_non_missing[, i.Sensor := NULL], key = "Time")
+
+cv_intervals <- data.table(cv_tidy[times_tidy], key = "Sensor")
+cv_intervals_field <- cv_intervals[detector_field]
+
+cv_date2 <- cv_intervals_field[, Date2 := Date]
+cv_time2 <- cv_date2[, Time2 := Time]
+
+cv_datetime <- cv_time2 %>%
+  unite(Date_Time, Date2, Time2, sep = ' ') %>%
+  rename(Volume = Value.x,
+         Occupancy = Value.y) %>%
+  
+  mutate(Date_Time = as_datetime(Date_Time),
+         Volume_status = ifelse(is.na(Volume), 1, 0),
+         Occupancy_status = ifelse(is.na(Occupancy), 1, 0)) %>%
+  group_by(Date, Interval) %>%
+  mutate(Interval_length = length(Interval),
+         Start_time = min(Date_Time),
+         End_time = max(Date_Time),
+         Volume_interval_status = sum(Volume),
+         Volume_count_of_nulls = sum(Volume_status),
+         Occupancy_interval_status = sum(Occupancy),
+         Occupancy_count_of_nulls = sum(Occupancy_status)) %>%
+  ungroup() %>%
+  mutate(Volume_non_interpolated_nulls = ifelse(is.na(Volume), 0, Volume),
+         Occupancy_non_interpolated_nulls = ifelse(is.na(Occupancy), 0, Occupancy),
+         Volume_percent_interpolated_in_interval = Volume_count_of_nulls/Interval_length*100,
+         Occupancy_percent_interpolated_in_interval = Occupancy_count_of_nulls/Interval_length*100) %>%
+  group_by(Date, Interval) %>%
+  mutate(Volume_to_interpolate_nulls = ifelse(is.na(Volume_interval_status) & Volume_count_of_nulls != Interval_length, sum(Volume_non_interpolated_nulls)/(Interval_length-Volume_count_of_nulls), NA),
+        Occupancy_to_interpolate_nulls = ifelse(is.na(Occupancy_interval_status) & Occupancy_count_of_nulls != Interval_length, sum(Occupancy_non_interpolated_nulls)/(Interval_length-Occupancy_count_of_nulls), NA)) %>%
+  ungroup() %>%
+  mutate(Volume_interpolated_nulls = ifelse(is.na(Volume), Volume_to_interpolate_nulls, Volume),
+         Occupancy_interpolated_nulls = ifelse(is.na(Occupancy) | Occupancy > 1800, Occupancy_to_interpolate_nulls, Occupancy)) %>%
+  group_by(Date, Interval) %>%
+  mutate(Interval_volume_no_interpolation = sum(Volume_non_interpolated_nulls),
+         Interval_volume_with_interpolation = ifelse(is.na(Volume_interval_status) & Volume_count_of_nulls != Interval_length, sum(Volume_interpolated_nulls), sum(Volume_non_interpolated_nulls)),
+         Interval_occupancy_no_interpolation = sum(Occupancy_non_interpolated_nulls),
+         Interval_occupancy_with_interpolation = ifelse(is.na(Occupancy_interval_status) & Occupancy_count_of_nulls != Interval_length, sum(Occupancy_interpolated_nulls), sum(Occupancy_non_interpolated_nulls))) %>%
+   ungroup() %>%
+  select(Sensor, Date, Start_time, End_time, Interval, Interval_volume_with_interpolation, Interval_occupancy_with_interpolation, Detector_field, Interval_length, Volume_percent_interpolated_in_interval, Occupancy_percent_interpolated_in_interval) %>%
+  unique() %>%
+  mutate(Speed = ifelse(Interval_occupancy_with_interpolation != 0, (Interval_volume_with_interpolation*120/Interval_length*Detector_field)/(5280*(Interval_occupancy_with_interpolation/(1800*Interval_length))), 0))
+
+ref_speed <- speed_summarized %>%
+  separate(Start_time, into = c('date', 'Start_time'), sep = ' ') %>%
+  separate(End_time, into = c('date', 'End_time'), sep = ' ') %>%
+  mutate(Start_time_h = as.numeric(hms(Start_time))/3600) %>% # Get start time as an increment of the 24 hours of the day
+  filter(Start_time_h < 6) %>% # Get peak time speeds only
+  mutate(Ref_speed = median(Speed),
+         Ref_speed_90 = Ref_speed * 0.9,
+         Ref_speed_av = mean(Speed)) %>%
+  separate(Date, into = c('Year', 'Month_day'), sep = 4) %>%
+  select(Ref_speed, Ref_speed_90, Ref_speed_av, Sensor) %>%
+  unique()
+
+measures_df <- left_join(speed_summarized, ref_speed, by = c('Sensor' = 'Sensor'))
+
+measures  <- measures_df %>%
+  mutate(Delay = ifelse(Ref_speed_90 < Speed, 0, (Ref_speed_90-Speed)*Interval_volume_with_interpolation),
+         VMT = Interval_volume_with_interpolation * 0.26)
+
+write_csv(measures, csv_path)
+
+}
+
+```

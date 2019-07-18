@@ -1,0 +1,126 @@
+"0","setwd('Datasets/Returned Data')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/Returned Data inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","parks <- list.files(pattern = '*.csv')"
+"0","list2env(map(set_names(parks, make_names(parks)), read_csv), envir = .GlobalEnv)"
+"2","Duplicated column names deduplicated: 'Q18' => 'Q18_1' [28], 'Q22' => 'Q22_1' [29], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q28' => 'Q28_1' [27], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"1","<environment: R_GlobalEnv>
+"
+"0","all_agencies_list <- list(Anoka_County, Bloomington, Carver_County, Dakota_County, "
+"0","                          Minneapolis_Park_and_Recreation_Board, Ramsey_County,"
+"0","                          Saint_Paul, Scott_County, Three_Rivers_Park_District,"
+"0","                          Washington_County)"
+"0","#' park_tidy"
+"0","#'"
+"0","#' @param df "
+"0","#' @return a cleaned data frame with conistent column names, time formats. "
+"0","park_tidy <- function(df) {"
+"0","  df %>%"
+"0","    slice(-1:-2) %>%"
+"0","    rename(Agency_name = 19,"
+"0","           Park_trail = 20,"
+"0","           Entrance = 21,"
+"0","           Month = 22,"
+"0","           Day = 23,"
+"0","           Year = 24,"
+"0","           Timeslot = 25,"
+"0","           Scheduled_count = 26,"
+"0","           Scheduled_date = 27,"
+"0","           Bikers = 28,"
+"0","           Peds_skaters = 29,"
+"0","           Vehicles = 30,"
+"0","           Buses = 31,"
+"0","           Horse_riders = 32,"
+"0","           Boaters = 33) %>%"
+"0","    select(19:33) %>%"
+"0","    unique() %>%"
+"0","    mutate(Start_time = ifelse(Timeslot != '10:00-12:00 PM', str_replace(Timeslot, '\\-.+? ', ''), '10:00AM')) %>%"
+"0","    separate(Start_time, into = c('Start', 'AM_PM'), sep = -2) %>%"
+"0","    unite(Start_time, Start, AM_PM, sep = ' ') %>%"
+"0","    mutate(Zero = 0,"
+"0","           Start_time_2 = Start_time) %>%"
+"0","    unite(Start_alt, Zero, Start_time_2, sep = '') %>%"
+"0","    mutate(Start_time_fmt = ifelse(Start_time != '10:00 AM' & Start_time != '12:00 PM', Start_alt, Start_time)) %>%"
+"0","    select(-Start_alt)"
+"0","  "
+"0","}"
+"0","agencies_tidied <- map(all_agencies_list, park_tidy)"
+"0","agencies_bound <- do.call(bind_rows, agencies_tidied)"

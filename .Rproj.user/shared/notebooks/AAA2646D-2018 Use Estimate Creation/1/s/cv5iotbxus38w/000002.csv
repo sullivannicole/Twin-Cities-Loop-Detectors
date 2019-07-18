@@ -1,0 +1,30 @@
+"0","# Import needed indices"
+"0","setwd('Datasets/Indices')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/Indices inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","park_ids <- read_csv('Park and Agency Codes Index.csv') # For Step 2"
+"2","Parsed with column specification:
+cols(
+  Park_id = col_integer(),
+  Park_name = col_character(),
+  Agency_name = col_character(),
+  Agency_id = col_integer()
+)
+"
+"0","entrance_classifications <- read_csv('2018 Entrance Usage Classifications Index.csv') # For Step 3 & 5"
+"2","Parsed with column specification:
+cols(
+  Park_trail = col_integer(),
+  Entrance = col_integer(),
+  Usage_class = col_character(),
+  Start_time = col_integer(),
+  Day_type = col_character()
+)
+"
+"0","bus_vehicle_multipliers <- read_csv('Bus and Vehicle Multipliers Index.csv') # For Step 4"
+"2","Parsed with column specification:
+cols(
+  Park = col_integer(),
+  ppb_multiplier = col_double(),
+  ppv_multiplier = col_double()
+)
+"

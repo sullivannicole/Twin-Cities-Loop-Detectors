@@ -1,0 +1,126 @@
+"0","# Import 2018 Qualtrics datasets - see Qualtrics Info document for login information"
+"0","# Note that for import by code below to work, all datasets must be csvs, saved with original Qualtrics names in 'Datasets' folder (i.e. download as csv from Qualtrics and do not change the name)"
+"0","setwd('.')"
+"0","setwd('Datasets/Qualtrics')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/Qualtrics inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","parks_18 <- list.files(pattern = '*.csv')"
+"0","#' make_names"
+"0","#'"
+"0","#' @param name_vector a vector of agency names"
+"0","#' @return a cleaned list of the agency names"
+"0","#' @details Takes in a vector of agency names and returns a clean list of the agency names. Removes special characters and establishes consistent naming conventions."
+"0","make_names <- function(name_vector) {"
+"0","  "
+"0","  name_vector_df <- as.data.frame(name_vector)"
+"0","  "
+"0","  new_names <- name_vector_df %>%"
+"0","    rename(Agency_name = 1) %>%"
+"0","    mutate(Agency_name = str_replace_all(Agency_name, c('\\+-+.+?v' = '', '\\+' = '_')))"
+"0","  "
+"0","  new_names_list <- as.list(new_names)"
+"0","  "
+"0","  return(new_names_list$Agency_name)"
+"0","}"
+"0","list2env(purrr::map(set_names(parks_18, make_names(parks_18)), read_csv), envir = .GlobalEnv)"
+"2","package ‘bindrcpp’ was built under R version 3.5.1"
+"2","Duplicated column names deduplicated: 'Q18' => 'Q18_1' [28], 'Q22' => 'Q22_1' [29], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q28' => 'Q28_1' [27], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]"
+"2","Parsed with column specification:
+cols(
+  .default = col_character()
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"1","<environment: R_GlobalEnv>
+"
+"0","all_agencies_list <- list(Anoka_County = Anoka_County, Bloomington = Bloomington,"
+"0","                          Carver_County = Carver_County, Dakota_County = Dakota_County,"
+"0","                          Minneapolis_Park_and_Recreation_Board = Minneapolis_Park_and_Recreation_Board, "
+"0","                          Ramsey_County = Ramsey_County, Saint_Paul = Saint_Paul, "
+"0","                          Scott_County = Scott_County, Three_Rivers_Park_District = Three_Rivers_Park_District,"
+"0","                          Washington_County = Washington_County)"
+"0","# Remove unnecessary variables to clean datasets prior to sending to agencies"
+"0","# "
+"0","variable_paring <- function(df) {"
+"0","  df %>%"
+"0","    slice(-2) %>%"
+"0","    select(18:33)"
+"0","}"
+"0","# "
+"0","parks_pared <- map(all_agencies_list, variable_paring)"
+"0","# Write out datasets without extra variables to folder on N drive, from which they can be sent for correction"
+"0","# parks_pared %>%"
+"0","#   names(.) %>%"
+"0","#   map(~ write_csv(parks_pared[[.]], paste0(""Datasets/To Send for Accuracy Audit/"", ., "".csv"")))"

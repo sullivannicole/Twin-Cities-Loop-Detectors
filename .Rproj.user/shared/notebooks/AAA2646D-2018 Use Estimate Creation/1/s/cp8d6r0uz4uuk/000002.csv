@@ -1,0 +1,40 @@
+"0","setwd('Datasets/2013-2017/Annual Use Estimates')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/2013-2017/Annual Use Estimates inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","annual_estimates_historic <- list.files(pattern = '*.csv')"
+"0","list2env(lapply(set_names(annual_estimates_historic, make_names(gsub(""*.csv$"", """", annual_estimates_historic))), read_csv), envir = .GlobalEnv)"
+"2","Parsed with column specification:
+cols(
+  Agency = col_character(),
+  Estimate_in_thousands = col_number(),
+  Percent = col_double(),
+  Year = col_integer()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency = col_character(),
+  Estimate_in_thousands = col_number(),
+  Percent = col_double(),
+  Year = col_integer()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency = col_character(),
+  Estimate_in_thousands = col_number(),
+  Percent = col_double(),
+  Year = col_integer()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency = col_character(),
+  Estimate_in_thousands = col_double(),
+  Percent = col_double(),
+  Year = col_integer()
+)
+"
+"1","<environment: R_GlobalEnv>
+"
+"0","annual_estimates_13_18 <- bind_rows(`2013_Annual_Use_Estimates`, `2015_Annual_Use_Estimates`, `2016_Annual_Use_Estimates`, `2017_Annual_Use_Estimates`, annual_estimates_agency)"
+"0","write_csv(annual_estimates_13_18, 'Annual Use Estimates 2013 through 2018.csv')"

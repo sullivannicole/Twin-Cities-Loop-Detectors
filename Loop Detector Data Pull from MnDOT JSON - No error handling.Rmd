@@ -1,0 +1,105 @@
+---
+title: "Loop Detector Data from JSON Feed - No error handling"
+output: html_document
+---
+
+```{r}
+
+# For final output, input detector name and extension
+
+csv_name <- '2018 x30 xxxx.csv'
+substr(csv_name, 10, 13) <- '7098'
+substr(csv_name, 6, 6) <- 'c'
+
+## Create function for generating URLs for a particular loop detector and extension for every day sampled
+
+generate_urls <- function(date_slice) {
+
+# Get all dates sampled in 2018
+x2018_dates <- as.data.frame(readLines('http://data.dot.state.mn.us:8080/trafdat/metro/2018'))
+
+# Note that code below differs from Windows operation:  on Mac, cannot use 'rename' function to rename by position - below is a workaround
+dates_tidy <<- x2018_dates %>%
+  mutate(Date = x2018_dates[[1]]) %>%
+  select(Date)
+
+date <- dates_tidy %>% slice(date_slice)
+date_of_interest <- as.character(date$Date)
+
+loop_url <- 'http://data.dot.state.mn.us:8080/trafdat/metro/2018/xxxxxxxx/7038.c30.json'
+str_sub(loop_url, 53, 60) <- date_of_interest
+
+loop_url
+
+}
+
+# Repeat code to get days_in_yr list for mapping
+x2018_dates <- as.data.frame(readLines('http://data.dot.state.mn.us:8080/trafdat/metro/2018'))
+
+dates_tidy <- x2018_dates %>%
+  mutate(Date = x2018_dates[[1]]) %>%
+  select(Date)
+
+days_in_yr <- c(1:nrow(dates_tidy))
+
+generated_urls <- map(days_in_yr, generate_urls)
+
+## Save output as dataframe
+loop_urls <- as.data.frame(generated_urls) %>% 
+  gather(1:365, key = 'dump', value = 'Loop_URL') %>%
+  select(-dump)
+
+## Create function for extracting data from URLs
+
+extract_loop_data <- function(URL){
+  
+URL_df <- data_frame(fromJSON(URL))
+URL_df$Date_sensor_ext <- str_sub(URL, 53, 69)
+
+URL_df_tidy <- URL_df %>%
+  mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+  mutate(Value = URL_df[[1]]) %>%
+  select(Value, Date_sensor_ext)
+
+times <- as.data.frame(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+times_tidy <- times %>%
+  mutate(Time = times[[1]]) %>%
+  mutate(Time = format(Time, format = '%H:%M:%S')) %>%
+  select(Time)
+
+URL_df_times <- bind_cols(URL_df_tidy, times_tidy)
+
+URL_df_tidy <- URL_df_times %>%
+  separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+  select(Value, Sensor, Ext, Date, Time)
+
+URL_df_tidy
+
+}
+
+URL_find <- function(slice_number){
+  
+URL_found <- as.character(loop_urls %>% slice(slice_number))
+
+URL_found
+
+}
+
+
+## Loop through the function with every URL - build in error check here
+URLs_in_list <- c(1:365)
+
+loop_days_sensor_ext <- vector("list", length(URLs_in_list))
+for (i in seq_along(URLs_in_list)) {
+
+  loop_days_sensor_ext[[i]] <- extract_loop_data(URL_find(URLs_in_list[[i]]))
+  
+}
+
+## Save output as dataframe
+detector_ext <- do.call(bind_rows, loop_days_sensor_ext)
+
+write_csv(detector_ext, csv_name)
+
+```

@@ -1,0 +1,110 @@
+"0","library(tidyverse)"
+"2","package ‘tidyverse’ was built under R version 3.5.3"
+"2","[37m-- [1mAttaching packages[22m --------------------------------------- tidyverse 1.2.1 --[39m
+"
+"2","[37m[32mv[37m [34mggplot2[37m 3.0.0     [32mv[37m [34mpurrr  [37m 0.2.5
+[32mv[37m [34mtibble [37m 1.4.2     [32mv[37m [34mdplyr  [37m 0.7.6
+[32mv[37m [34mtidyr  [37m 0.8.1     [32mv[37m [34mstringr[37m 1.3.1
+[32mv[37m [34mreadr  [37m 1.1.1     [32mv[37m [34mforcats[37m 0.3.0[39m
+"
+"2","package ‘ggplot2’ was built under R version 3.5.1"
+"2","package ‘tibble’ was built under R version 3.5.1"
+"2","package ‘tidyr’ was built under R version 3.5.1"
+"2","package ‘readr’ was built under R version 3.5.1"
+"2","package ‘purrr’ was built under R version 3.5.1"
+"2","package ‘dplyr’ was built under R version 3.5.1"
+"2","package ‘stringr’ was built under R version 3.5.1"
+"2","package ‘forcats’ was built under R version 3.5.1"
+"2","[37m-- [1mConflicts[22m ------------------------------------------ tidyverse_conflicts() --
+[31mx[37m [34mdplyr[37m::[32mfilter()[37m masks [34mstats[37m::filter()
+[31mx[37m [34mdplyr[37m::[32mlag()[37m    masks [34mstats[37m::lag()[39m
+"
+"0","library(jsonlite)"
+"2","package ‘jsonlite’ was built under R version 3.5.2"
+"2","
+Attaching package: ‘jsonlite’
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    flatten
+
+"
+"0","library(stringr)"
+"0","library(timeDate)"
+"2","package ‘timeDate’ was built under R version 3.5.2"
+"0","library(lubridate)"
+"2","package ‘lubridate’ was built under R version 3.5.1"
+"2","
+Attaching package: ‘lubridate’
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    date
+
+"
+"0","library(rlang)"
+"2","package ‘rlang’ was built under R version 3.5.3"
+"2","
+Attaching package: ‘rlang’
+
+"
+"2","The following objects are masked from ‘package:jsonlite’:
+
+    flatten, unbox
+
+"
+"2","The following objects are masked from ‘package:purrr’:
+
+    %@%, %||%, as_function, flatten, flatten_chr, flatten_dbl, flatten_int, flatten_lgl, invoke, list_along, modify, prepend,
+    rep_along, splice
+
+"
+"0","library(parallel)"
+"0","library(data.table)"
+"2","package ‘data.table’ was built under R version 3.5.2"
+"2","data.table 1.11.8  Latest news: r-datatable.com
+"
+"2","
+Attaching package: ‘data.table’
+
+"
+"2","The following object is masked from ‘package:rlang’:
+
+    :=
+
+"
+"2","The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week, yday, year
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    transpose
+
+"
+"0","library(microbenchmark)"
+"2","package ‘microbenchmark’ was built under R version 3.5.3"
+"0","library(foreach)"
+"2","package ‘foreach’ was built under R version 3.5.1"
+"2","
+Attaching package: ‘foreach’
+
+"
+"2","The following objects are masked from ‘package:purrr’:
+
+    accumulate, when
+
+"
+"0","library(doParallel)"
+"2","package ‘doParallel’ was built under R version 3.5.1"
+"2","Loading required package: iterators
+"
+"2","package ‘iterators’ was built under R version 3.5.1"

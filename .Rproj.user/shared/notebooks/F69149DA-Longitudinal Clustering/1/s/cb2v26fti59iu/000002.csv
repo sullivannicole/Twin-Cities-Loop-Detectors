@@ -1,0 +1,22 @@
+"0","```r
+# Correlation Matrices by cluster assignment, no 2000 variables
+ggplot <- function(...)
+ggplot2::ggplot(...) + scale_color_brewer(palette=\"Purples\") + scale_fill_brewer(palette=\"Purples\")
+unlockBinding(\"ggplot\",parent.env(asNamespace(\"GGally\")))
+assign(\"ggplot\",ggplot,parent.env(asNamespace(\"GGally\")))
+
+graph_corr <- ggpairs(cl00_17, mapping = aes(color = clusters),
+                      columns = c('perc_poc', 'perc_65up', 'median_hhi', 'emv', 'perc_new_bld', \"clusters\"),
+                      columnLabels = c('% POC 17', '% 65+ 17', 'HHI 17', 'EMV 17', 'New Builds 17', \"clusters\"))
+
+graph_corr <- graph_corr + theme(text = element_text(family = \"Tw Cen MT\"),
+                                 strip.background = element_blank(),
+                                 panel.background = element_rect(fill = \"white\"),
+                                 panel.grid = element_line(color = \"white\"))
+
+graph_corr
+
+#ggsave(\"Results/Longitudinal Clustering/Correlation Matrices by cluster assignment - 2017 only.png\", width = 12, height = 8)
+
+
+```"

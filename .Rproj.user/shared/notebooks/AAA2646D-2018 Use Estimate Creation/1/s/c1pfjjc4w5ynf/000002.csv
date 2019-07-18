@@ -1,0 +1,5 @@
+"0","# Compute expanded total of visitors (total for entire season, based on sample)"
+"0","step_VI <- step_V %>%"
+"0","  mutate(Expanded_total = (ppv_multiplier*as.numeric(Vehicles) + as.numeric(Bikers) + as.numeric(Peds_skaters) +"
+"0","                             ppb_multiplier*as.numeric(Buses) + as.numeric(Horse_riders) + as.numeric(Boaters)) *"
+"0","           as.numeric(Total_days_by_type) * as.numeric(Expansion_factor))"

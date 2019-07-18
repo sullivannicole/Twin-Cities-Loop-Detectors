@@ -1,0 +1,5 @@
+"0","corridor_wrap(corridor, year, ref_period_start, ref_period_end)
+"
+"2","Expected 2 pieces. Additional pieces discarded in 44 rows [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, ...]."
+"2","Error in unserialize(socklist[[n]]) : error reading from connection
+"

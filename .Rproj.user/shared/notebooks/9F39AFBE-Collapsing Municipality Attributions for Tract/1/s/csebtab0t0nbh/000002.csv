@@ -1,0 +1,15 @@
+"0","```r
+ctu <- read_csv(\"Data/BlocksWithCTUs.csv\")
+
+```"
+"1","Parsed with column specification:
+cols(
+  BLK10 = col_double(),
+  CTU_CODE = col_character(),
+  CTU_ID = col_character(),
+  CTU_NAME = col_character(),
+  CO_CODE = col_character(),
+  COUNTY = col_character(),
+  TR10 = col_double()
+)
+"

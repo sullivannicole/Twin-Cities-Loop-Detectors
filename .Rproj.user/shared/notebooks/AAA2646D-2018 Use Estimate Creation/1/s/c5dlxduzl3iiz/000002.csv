@@ -1,0 +1,43 @@
+"0","# Import packages"
+"0","library(tidyverse)"
+"0","library(lubridate)"
+"2","package ‘lubridate’ was built under R version 3.5.1"
+"2","
+Attaching package: ‘lubridate’
+
+"
+"2","The following objects are masked from ‘package:data.table’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week, yday, year
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    date
+
+"
+"0","library(RQuantLib)"
+"2","package ‘RQuantLib’ was built under R version 3.5.2"
+"0","library(plotly)"
+"2","package ‘plotly’ was built under R version 3.5.3"
+"2","
+Attaching package: ‘plotly’
+
+"
+"2","The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+"
+"2","The following object is masked from ‘package:stats’:
+
+    filter
+
+"
+"2","The following object is masked from ‘package:graphics’:
+
+    layout
+
+"
+"0","library(roxygen2)"
+"2","package ‘roxygen2’ was built under R version 3.5.3"

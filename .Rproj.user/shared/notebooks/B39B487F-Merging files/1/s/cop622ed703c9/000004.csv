@@ -1,0 +1,12 @@
+"0","c_df <- file_list_df %>%
+  filter(Extension == ""c30.csv"") %>%
+  unite(file, Sensor_info, Extension, sep = """") %>%
+  mutate(path = ""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/T.H.252"") %>%
+  unite(path_file, path, file, sep = ""/"")
+c_values <- as.character(v_df$path_file)
+c_dataset <- do.call(""rbind"", map(c_values, function(files){fread(files)}))
+fwrite(c_dataset, ""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/"", corridor, "" Occupancy Data.csv"")
+"
+"2","Error in fwrite(c_dataset, ""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/"",  : 
+  identical(quote, ""auto"") || identical(quote, FALSE) || identical(quote,  .... is not TRUE
+"

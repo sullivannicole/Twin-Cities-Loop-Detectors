@@ -1,0 +1,38 @@
+"0","```r
+#setwd('.')
+#setwd('Datasets/Audited')
+#parks_18 <- list.files(pattern = '*.csv')
+all_agencies_list <- list(Anoka_County, Bloomington, Carver_County, Dakota_County, Minneapolis_Park_and_Recreation_Board, Ramsey_County, Saint_Paul, Scott_County, Three_Rivers_Park_District, Washington_County)
+park_tidy <- function(df) {
+  df %>%
+    slice(-1:-2) %>%
+  rename(Counter_initials = 18,
+         Agency_name = 19,
+         Park_trail = 20,
+         Entrance = 21,
+         Month = 22,
+         Day = 23,
+         Year = 24,
+         Timeslot = 25,
+         Scheduled_count = 26,
+         Scheduled_date = 27,
+         Bikers = 28,
+         Peds_skaters = 29,
+         Vehicles = 30,
+         Buses = 31,
+         Horse_riders = 32,
+         Boaters = 33) %>%
+  select(8, 9, 18:33) %>%
+  mutate(Start_time = ifelse(Timeslot != '10:00-12:00 PM', str_replace(Timeslot, '\\-.+? ', ''), '10:00AM')) %>%
+  separate(Start_time, into = c('Start', 'AM_PM'), sep = -2) %>%
+  unite(Start_time, Start, AM_PM, sep = ' ') %>%
+  mutate(Zero = 0,
+         Start_time_2 = Start_time) %>%
+  unite(Start_alt, Zero, Start_time_2, sep = '') %>%
+  mutate(Start_time_fmt = ifelse(Start_time != '10:00 AM' & Start_time != '12:00 PM', Start_alt, Start_time)) %>%
+  select(-Start_alt)
+  
+}
+agencies_tidied <- map(all_agencies_list, park_tidy)
+agencies_bound <- do.call(bind_rows, agencies_tidied)
+```"

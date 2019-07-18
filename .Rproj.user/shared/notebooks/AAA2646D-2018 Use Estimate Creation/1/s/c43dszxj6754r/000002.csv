@@ -1,0 +1,5 @@
+"0","# Note that Trout Brook's RT Entrance 4 was fixed manually; if the 2018 Entrance Usage Classifications Index is re-run in the conversion workbook, this will again need to be changed manually (or scripted) according to the document 'Trout Brook RT Entrnace 4 2018 Designations'"
+"0","entrance_class_join <- entrance_classifications %>%"
+"0","  mutate(Entrance = as.character(Entrance)) %>%"
+"0","  mutate(Start_time = format(strptime(substr(as.POSIXct(sprintf(""%04.f"", as.numeric(Start_time)), format=""%H%M""), 12, 16), '%H:%M'), '%I:%M %p'))"
+"0","step_III <- left_join(step_IIa, entrance_class_join, by = c('Park_id' = 'Park_trail', 'Entrance', 'Start_time', 'Day_type'))"

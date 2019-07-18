@@ -1,0 +1,2 @@
+"0","# Where there are duplicates, accept the entry with the most recent entry date and time combination (consider it a 'corrected' entry)"
+"0","step_III_dups_full <- inner_join(step_III, step_III_dups, by = c('Park_id', 'Date', 'Start_time', 'Entrance'))"

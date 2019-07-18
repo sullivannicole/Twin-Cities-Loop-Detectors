@@ -1,0 +1,147 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Pull files in parallel and merge in one large dataset
+
+```{r}
+library(data.table)
+library(tidyverse)
+library(foreach)
+library(doParallel)
+num_cores <- detectCores()
+registerDoParallel(num_cores)
+```
+
+
+
+```{r}
+
+corridor <- "T.H.100"
+
+setwd(paste("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, sep = ""))
+
+file_list <- list.files()
+
+dataset <- do.call("rbind", foreach(i = file_list) %dopar% {
+  library(data.table)
+  fread(paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, "/", i))
+  })
+
+fwrite(dataset, paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/", corridor, " Volume-Occupancy Data.csv"))
+
+rm(dataset)
+```
+
+############# Creates separate volume and occupancy files
+
+```{r}
+library(data.table)
+library(tidyverse)
+library(foreach)
+library(doParallel)
+
+corridor <- "T.H.252"
+
+setwd(paste("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, sep = ""))
+
+file_list <- list.files()
+
+file_list_df <- as_tibble(file_list) %>% separate(value, into = c("Sensor_info", "Extension"), sep = -7)
+
+v_df <- file_list_df %>%
+  filter(Extension == "v30.csv") %>%
+  unite(file, Sensor_info, Extension, sep = "") %>%
+  mutate(path = "N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/T.H.252") %>%
+  unite(path_file, path, file, sep = "/")
+
+v_values <- as.character(v_df$path_file)
+
+v_dataset <- do.call("rbind", map(v_values, function(files){fread(files)}))
+
+fwrite(v_dataset, paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/", corridor, " Volume Data.csv"))
+
+c_df <- file_list_df %>%
+  filter(Extension == "c30.csv") %>%
+  unite(file, Sensor_info, Extension, sep = "") %>%
+  mutate(path = "N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/T.H.252") %>%
+  unite(path_file, path, file, sep = "/")
+
+c_values <- as.character(v_df$path_file)
+
+c_dataset <- do.call("rbind", map(c_values, function(files){fread(files)}))
+
+fwrite(c_dataset, paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/", corridor, " Occupancy Data.csv"))
+
+```
+
+
+# Import files in parallel (4 cores = 4 files at once instead of 1); separate files for occupancy and volume
+
+```{r}
+num_cores <- detectCores()
+registerDoParallel(num_cores)
+```
+
+```{r}
+
+corridor <- "T.H.5"
+
+setwd(paste("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, sep = ""))
+
+file_list <- list.files()
+
+file_list_df <- as_tibble(file_list) %>%
+  mutate(csv_name = value) %>%
+  separate(value, into = c("value", "empty"), sep = ".csv") %>%
+  mutate(value = trimws(value)) %>%
+  separate(value, into = c("Sensor_info", "Extension"), sep = -3)
+
+v_df <- file_list_df %>%
+  filter(Extension == "v30") %>%
+  mutate(path_file = paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, "/", csv_name))
+
+v_values <- as.character(v_df$path_file)
+
+v_dataset <- do.call("rbind", foreach(i = v_values) %dopar% {
+  library(data.table)
+  fread(i)
+  })
+
+fwrite(v_dataset, paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/", corridor, " Volume Data.csv"))
+
+c_df <- file_list_df %>%
+  filter(Extension == "c30") %>%
+  mutate(path_file = paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/", corridor, "/", csv_name))
+
+c_values <- as.character(c_df$path_file)
+
+c_dataset <- do.call("rbind", foreach(i = c_values) %dopar% {
+  library(data.table)
+  fread(i)
+  })
+
+fwrite(c_dataset, paste0("N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/", corridor, " Occupancy Data.csv"))
+
+
+```
+
+# For separate datasets
+
+```{r}
+for (i in v_values) {
+  
+  name <- i %>%
+    as_tibble() %>%
+    separate(value, into = c("Path_prefix", "Sensor_extension"), sep = "Sensor ") %>%
+    separate(Sensor_extension, into = c("Sensor", "Extension"), sep = " ") %>%
+    separate(Extension, into = c("Extension", "empty"), sep = ".csv") %>%
+    unite(Extension_Sensor, Extension, Sensor)
+  
+  file_read <<- fread(i, header = TRUE)
+  assign(paste(name$Extension_Sensor), file_read, envir = .GlobalEnv)
+}
+```
+
+

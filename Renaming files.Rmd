@@ -1,0 +1,63 @@
+---
+title: "Rename"
+output: html_notebook
+---
+
+# Remove date range specification from Volume-Occupancy file names
+
+Originally, start date and end date were specified as a part of file name within corridor_pull_par function.  This was determined to be a nuisance for a variety of reasons; thus date range specification is removed here from all file names.
+
+```{r}
+folder <- "N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/I-494"
+
+hwys <- list.files(folder, full.names = T)
+
+map(hwys, function(eachPath){ 
+   file.rename(from = eachPath, to = sub(pattern = "20180101-20181231", paste0(""), eachPath))
+ })
+
+```
+
+# Remove year attribution
+
+```{r}
+
+folder <- "N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/T.H.252"
+
+hwys <- list.files(folder, full.names = T)
+
+map(hwys, function(eachPath){ 
+   file.rename(from = eachPath, to = sub(pattern = "2018 ", paste0(""), eachPath))
+ })
+
+```
+
+# Get rid of space between extension and .csv in file name
+
+Next, year is added as prefix (in case files are moved, the year is a helpful differentiator).
+
+```{r}
+folder <- "N:\\CommDev\\Research\\Public\\MTS\\Metro Loop Detectors\\Volume-Occupancy Data\\2018\\T.H.610"
+
+sensors <- list.files(folder, full.names = T)
+
+map(sensors, function(eachPath){ 
+   file.rename(from = eachPath, to = sub(pattern = "30 .csv", paste0("30.csv"), eachPath))
+ })
+
+```
+
+# Get rid of space between extension and .csv in file name
+
+Next, year is added as prefix (in case files are moved, the year is a helpful differentiator).
+
+```{r}
+folder <- "N:\\CommDev\\Research\\Public\\MTS\\Metro Loop Detectors\\Volume-Occupancy Data\\2018\\U.S.169"
+
+sensors <- list.files(folder, full.names = T)
+
+map(sensors, function(eachPath){ 
+   file.rename(from = eachPath, to = sub(pattern = ".csv", paste0(" c30.csv"), eachPath))
+ })
+
+```

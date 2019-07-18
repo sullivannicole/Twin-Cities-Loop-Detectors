@@ -1,0 +1,38 @@
+"0","```r
+
+# Which agency or agencies have duplicated counts?
+
+# step_II_agency_counts <- step_II %>%
+#   group_by(Agency_name) %>%
+#   count()
+# 
+# step_IIa_agency_counts <- step_IIa %>%
+#   group_by(Agency_name) %>%
+#   count()
+# 
+# step_IIa_compare_agency_counts <- full_join(step_II_agency_counts, step_IIa_agency_counts, by = c('Agency_name'))
+# 
+# # In this case, only Anoka.  Which Anoka parks or trails were duplicated?
+# 
+# step_II_park_counts <- step_II %>%
+#   filter(Agency_name == 'Anoka County') %>%
+#   group_by(Park_trail) %>%
+#   count()
+# 
+# step_IIa_park_counts <- step_IIa %>%
+#   filter(Agency_name == 'Anoka County') %>%
+#   group_by(Park_trail) %>%
+#   count()
+# 
+# step_IIa_compare_park_counts <- full_join(step_II_park_counts, step_IIa_park_counts, by = c('Park_trail'))
+# 
+# step_IIa_compare_counts %>%
+#   filter(n.x != n.y)
+# # In this case, Rum River Central Regional Park is responsible for the duplication.  Rum River CRP was given two park attributions for Anoka County, by mistake.  Remove the '109' attribution from the index.
+# 
+# step_IIa_unjoined <- step_IIa %>%
+#   filter(is.na(Park_id) | is.na(Agency_id)) %>%
+#   select(Park_trail, Agency_name) %>%
+#   unique()
+
+```"

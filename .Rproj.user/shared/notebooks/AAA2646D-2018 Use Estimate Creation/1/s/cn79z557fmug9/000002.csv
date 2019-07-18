@@ -1,0 +1,92 @@
+"0","```r
+# Import 2018 Qualtrics datasets - see Qualtrics Info document for login information
+# Note that for import by code below to work, all datasets must be csvs, saved with original Qualtrics names in 'Datasets' folder (i.e. download as csv from Qualtrics and do not change the name)
+setwd('.')
+setwd('Datasets/Qualtrics')
+```"
+"1","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/Qualtrics inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks.
+"
+"0","```r
+parks_18 <- list.files(pattern = '*.csv')
+make_names <- function(name_vector) {
+ 
+  name_vector_df <- as.data.frame(name_vector)
+ 
+ new_names <- name_vector_df %>%
+   rename(Agency_name = 1) %>%
+   mutate(Agency_name = str_replace_all(Agency_name, c('\\+-+.+?v' = '', '\\+' = '_')))
+ new_names_list <- as.list(new_names)
+ 
+ return(new_names_list$Agency_name)
+}
+list2env(map(set_names(parks_18, make_names(parks_18)), read_csv), envir = .GlobalEnv)
+```"
+"1","Duplicated column names deduplicated: 'Q18' => 'Q18_1' [28], 'Q22' => 'Q22_1' [29], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q28' => 'Q28_1' [27], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+Duplicated column names deduplicated: 'Q17' => 'Q17_1' [22], 'Q21' => 'Q21_1' [28], 'Q26' => 'Q26_1' [32], 'Q27' => 'Q27_1' [33]Parsed with column specification:
+cols(
+  .default = col_character()
+)
+See spec(...) for full column specifications.
+"
+"1","<environment: R_GlobalEnv>
+"
+"0","```r
+all_agencies_list <- list(Anoka_County = Anoka_County, Bloomington = Bloomington, Carver_County = Carver_County, Dakota_County = Dakota_County, Minneapolis_Park_and_Recreation_Board = Minneapolis_Park_and_Recreation_Board, Ramsey_County = Ramsey_County, Saint_Paul = Saint_Paul, Scott_County = Scott_County, Three_Rivers_Park_District = Three_Rivers_Park_District, Washington_County = Washington_County)
+# Remove unnecessary variables to clean datasets prior to sending to agencies
+# 
+# variable_paring <- function(df) {
+#   df %>%
+#     slice(-2) %>%
+#     select(18:33)
+# }
+# 
+# parks_pared <- map(all_agencies_list, variable_paring)
+# Write out datasets without extra variables to folder on N drive, from which they can be sent for correction
+# parks_pared %>%
+#   names(.) %>%
+#   map(~ write_csv(parks_pared[[.]], paste0(\"Datasets/To Send for Accuracy Audit/\", ., \".csv\")))
+```"

@@ -1,0 +1,115 @@
+"0","library(tidyverse)"
+"0","setwd('Results')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Results inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","summer_estimates <- read_csv('Summer Visitor Use Estimates Aggregated by Park.csv')"
+"2","Parsed with column specification:
+cols(
+  Park_total_for_summer = col_double(),
+  Park_id = col_integer(),
+  Park_name = col_character(),
+  Estimate = col_double(),
+  Year = col_integer()
+)
+"
+"0","summer_estimates_2018 <- summer_estimates %>%"
+"0","  filter(Year == 2018)"
+"0","setwd('..')"
+"0","setwd('Datasets/Special Events and Camping')"
+"0","parks <- list.files(pattern = '*.csv')"
+"0","make_names <- function(name_vector) {"
+"0","  "
+"0","  name_vector_df <- as.data.frame(name_vector)"
+"0","  "
+"0","  new_names <- name_vector_df %>%"
+"0","    rename(Agency_name = 1) %>%"
+"0","    mutate(Agency_name = str_replace_all(Agency_name, c('2018 ' = '', ' ' = '_', '-' = '_', '\\.csv' = '')))"
+"0","  "
+"0","  new_names_list <- as.list(new_names)"
+"0","  "
+"0","  return(new_names_list$Agency_name)"
+"0","}"
+"0","list2env(purrr::map(set_names(parks, make_names(parks)), read_csv), envir = .GlobalEnv)"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double(),
+  Camping_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double(),
+  Camping_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double(),
+  Enterprise_operation_visits = col_double(),
+  Walk_in_visits = col_double(),
+  Camping_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double(),
+  Camping_visitors = col_double()
+)
+"
+"2","Parsed with column specification:
+cols(
+  Agency_name = col_character(),
+  Park_name = col_character(),
+  Event_visitors = col_double(),
+  Camping_visitors = col_double()
+)
+"
+"1","<environment: R_GlobalEnv>
+"
+"0","events_camping <- bind_rows(Anoka_County_Events_Camping, Bloomington_Events_Camping, "
+"0","                            Carver_County_Events_Camping, Dakota_County_Events_Camping,"
+"0","                            MPRB_Events_Camping, Ramsey_County_Events_Camping, "
+"0","                            Saint_Paul_Events_Camping, TRPD_Events_Camping, "
+"0","                            TRPD_Scott_Events_Camping, Washington_County_Events_Camping)"

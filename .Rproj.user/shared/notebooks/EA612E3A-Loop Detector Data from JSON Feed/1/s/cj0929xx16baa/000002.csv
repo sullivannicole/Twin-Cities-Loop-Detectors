@@ -1,0 +1,12 @@
+"0","```r
+
+start_date <- '20180101'
+end_date <- '20180102'
+#corridor <- 'I-494'
+sensor_start <- 3
+sensor_end <- 4
+
+#microbenchmark(corridor_pull(corridor, start_date, end_date), times = 1)
+
+corridor_pull_slice(corridor, start_date, end_date, sensor_start, sensor_end)
+```"

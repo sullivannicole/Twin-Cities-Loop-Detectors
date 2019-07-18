@@ -1,0 +1,6 @@
+"0","corridor <- 'T.H.55'"
+"0","year <- 2018"
+"0","# Create directory for new corridor - done once before measures processing"
+"0","new_dir <- paste('Measures Data/', year, '/', corridor, sep = '')"
+"0","dir.create(new_dir)"
+"0","#corridor_vc <- as_tibble(list.files(paste('Volume-Occupancy Data/2018/', 'U.S. 169', sep = '')))"

@@ -1,0 +1,27 @@
+"0","```r
+
+corridor_pull <- function(corridor, start_date, end_date) {
+
+config_mainline <- metro_config %>%
+  filter(Corridor_route == corridor & Rnode_n_type == 'Station') %>%
+  select(Corridor_route, Detector_name)
+  
+extensions <- as_tibble(c('c', 'v')) %>% rename(extension = value)
+  
+mainline_args <- crossing(config_mainline, extensions) %>%
+  mutate(start_date = start_date,
+         end_date = end_date) %>%
+  rename(sensor = Detector_name,
+         corridor = Corridor_route)
+
+mainline_list <- split(mainline_args, seq(nrow(mainline_args)))
+
+length_args <- c(1:length(mainline_list))
+
+for (i in seq_along(length_args)) {
+
+  do.call(sensor_pull, mainline_list[[i]])
+  }
+}
+
+```"

@@ -1,0 +1,10 @@
+"0","```r
+cl00_17$clusters <- getClusters(cld_snc, 4)
+
+# Convert clusters to numeric dummy variables
+cl_mod <- cl00_17 %>%
+  mutate(clusters = ifelse(clusters == \"A\", 1,
+                           ifelse(clusters == \"B\", 2,
+                                  ifelse(clusters == \"C\", 3, 4))))
+
+```"

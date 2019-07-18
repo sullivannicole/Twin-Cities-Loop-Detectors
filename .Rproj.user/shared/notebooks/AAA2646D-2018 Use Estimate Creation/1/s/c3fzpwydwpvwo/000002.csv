@@ -1,0 +1,46 @@
+"0","```r
+# Calculate days in the summer season for the year
+memorial_labor <- as.data.frame(RQuantLib::getHolidayList(calendar = 'UnitedStates', from = as_date(ymd('20180501')), to = as_date(ymd('20180930')), includeWeekends = FALSE))
+summer_days <- memorial_labor %>%
+  rename(Date = 1) %>%
+  slice(-2) %>% # remove Fourth of July
+  mutate(row_id = row_number()) %>%
+  mutate(Holiday = ifelse(row_id == 1, 'Memorial_Day', 'Labor_Day')) %>%
+  select(-row_id) %>%
+  spread(Holiday, value = Date) %>%
+  mutate(Memorial_Day_Saturday = as_date(ymd(Memorial_Day))- days(2)) %>% # Summer season begins the Saturday before Memorial Day
+  mutate(Season_period = as.period(interval(start = as_date(ymd(Memorial_Day_Saturday)), end = as_date(ymd(Labor_Day))), unit = 'day')) %>%
+  separate(Season_period, into = c('Season_days', \"HMS_in_season\"), sep = 'd') %>%
+  mutate(Half_of_summer = (as.numeric(Season_days)/2)) %>%
+  mutate(Midpoint_of_summer = as_date(ymd(Memorial_Day_Saturday)) + days(Half_of_summer))
+# Calculate number of weekend/holiday days and number of weekdays in summer season - this 
+day_type_counts <- as.data.frame(seq(as.Date(summer_days$Memorial_Day_Saturday), as.Date(summer_days$Labor_Day), \"days\")) %>%
+  rename(Date = 1) %>%
+  mutate(Holiday = RQuantLib::isHoliday(calendar = \"UnitedStates\", dates = Date)) %>%
+  mutate(Day_type = ifelse(Holiday == 'TRUE', 'Weekends_holidays', 'Weekdays')) %>%
+  group_by(Day_type) %>%
+  count() %>%
+  spread(Day_type, value = n)
+# Assign which half of the summer the day falls in (this is used, in part, ); assign day-type variable; assign number of days of that day-type in the season (this number is used as a multiplier to scale counts up)
+step_II <- agencies_bound %>%
+  mutate(Year = ifelse(is.na(Year), '2018', Year)) %>% # Some agencies don't enter the year; fill in for them
+  mutate(Month_unite = Month,
+         Day_unite = Day,
+         Year_unite = Year) %>%
+  unite(Date, Month_unite, Day_unite, Year_unite, sep = \" \") %>%
+  mutate(Date = as_date(mdy(Date))) %>%
+  mutate(Half_of_summer = ifelse(Date <= summer_days$Midpoint_of_summer, 1, 2)) %>% 
+  unite(Date_year, Month, Day, Year, sep = '-') %>%
+  mutate(Date_object = as_date(mdy(Date_year))) %>%
+  mutate(Holiday = RQuantLib::isHoliday(calendar = \"UnitedStates\", dates = Date_object)) %>%
+  mutate(Day_type = ifelse(Holiday == 'TRUE', 'Weekend_holiday', 'Weekday')) %>%
+  mutate(Total_days_by_type = ifelse(Day_type == 'Weekend_holiday', day_type_counts$Weekends_holidays, day_type_counts$Weekdays)) %>%
+  select(-Holiday) %>%
+  mutate(Park_trail = ifelse(Park_trail == 'Minnesota River Greenway', 'Minnesota River Greenway Regional Trail', Park_trail)) %>%
+  mutate(Agency_name = ifelse(Park_trail == 'Battle Creek Regional Park', 'Ramsey County',
+                              ifelse(Park_trail == 'Mississippi Gorge Regional Park', 'Minneapolis Park and Recreation Board',
+                                     ifelse(Park_trail == 'Hidden Falls-Crosby Farm Regional Park', 'Saint Paul',
+                                            ifelse(Park_trail == 'Scott County Regional Trail', 'Scott County', Agency_name))))) %>% # These agency selection for these trails from the Qualtrics form are incorrect
+  mutate(Start_time = as.character(Start_time_fmt)) %>%
+  select(-Start_time_fmt)
+```"

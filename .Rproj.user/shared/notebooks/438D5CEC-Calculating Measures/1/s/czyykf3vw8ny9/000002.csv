@@ -1,0 +1,7 @@
+"0","library(tidyverse)"
+"0","library(data.table)"
+"0","setwd('Measures Data/2018/U.S.169')"
+"2","The working directory was changed to N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Measures Data/2018/U.S.169 inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","measures <- list.files(pattern = '*.csv')"
+"0","measures_l <- map(set_names(measures, gsub('.csv$', '', measures)), fread)"
+"0","measures_df <- do.call(rbind, measures_l)"

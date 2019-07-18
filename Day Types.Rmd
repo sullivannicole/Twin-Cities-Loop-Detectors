@@ -1,0 +1,50 @@
+---
+title: "2018 Holidays, Weekends, Weekdays"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(RQuantLib)
+library(lubridate)
+
+# 2018 Holidays
+holidays_2018 <- as_tibble(RQuantLib::getHolidayList(calendar = 'UnitedStates', from = as_date(ymd('20180101')), to = as_date(ymd('20181231')), includeWeekends = FALSE)) %>%
+  mutate(Holiday = 1) %>%
+  mutate(value = as.factor(value)) %>%
+  rename(Date = value)
+
+# Dateframe with date
+days <- holidays_2018 %>%
+  rename(Date = 1)
+
+# Create dataframe of all dates in year
+
+date <- as_date(ymd('2017-12-31'))
+end_date <- as_date(ymd('2018-12-31'))
+dates_18 <- list()
+i <- 1
+
+while(date < end_date) {
+  
+  date = date + 1
+  dates_18[[i]] <- as.character(date)
+  i <- i + 1
+  
+}
+
+dates_18_df <- setNames(do.call(rbind.data.frame, dates_18), c('Date'))
+
+day_types_18 <- dates_18_df %>%
+  mutate(Day_type = ifelse(RQuantLib::isHoliday(calendar = "UnitedStates",
+                                        dates = as_date(Date)) == TRUE, 'Weekend', 'Weekday')) %>%
+  mutate(Day_of_week = wday(Date, label = T, abbr = F))
+
+day_types_hol <- left_join(day_types_18, holidays_2018, by = c('Date'))
+
+day_types <- day_types_hol %>%
+  mutate(Day_category = ifelse(!is.na(Holiday), 'Holiday', Day_type))
+
+write_csv(day_types, '2018 Day Types.csv')
+
+````

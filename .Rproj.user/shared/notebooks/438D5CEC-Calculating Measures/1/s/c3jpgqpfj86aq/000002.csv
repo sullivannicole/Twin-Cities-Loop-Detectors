@@ -1,0 +1,18 @@
+"0","detector_config <- read_csv('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv')
+"
+"2","Parsed with column specification:
+cols(
+  .default = col_character(),
+  Detector_lane = col_integer(),
+  Detector_field = col_double(),
+  Rnode_lon = col_double(),
+  Rnode_lat = col_double(),
+  Rnode_lanes = col_integer(),
+  Rnode_shift = col_integer(),
+  Rnode_slimit = col_integer(),
+  Corridor_index = col_integer(),
+  distance = col_double()
+)
+"
+"2","See spec(...) for full column specifications.
+"

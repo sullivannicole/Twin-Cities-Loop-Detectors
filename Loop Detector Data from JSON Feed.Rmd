@@ -1,0 +1,546 @@
+---
+title: "Metro Loop Detectors"
+output: html_notebook
+---
+
+:: --------------------------------------------------------------
+
+# BACKGROUND - extraction
+
+:: --------------------------------------------------------------
+
+The code below extracts data from MnDOT's JSON feed (located at http://data.dot.state.mn.us:8080/trafdat/metro/yyyy/yyyymmdd/ssss.x30.json), which updates daily with 30-second interval measurements of occupancy and volume (explained further in the speed processing section) at the sensor level.
+
+## Pull options
+There are 4 pull options:  sensor_pull, corridor_pull_slice, corridor_pull or corridor_pull_par.  Range of time for data pull needs to be specified in each function (via start_date and end_date arguments); *there is no default date range*.
+
+## Pull recommendations
+* Sensor_pull:  pulls data for a single sensor for date range specified
+* Corridor_pull_slice:  pulls data for a corridor for a few sensors at a time.  This function is great for testing speed of processing.  Recommended use with microbenchmark.
+* Corridor_pull:  pulls data for a corridor, without parallel-run specifications. This is *not recommended for Windows OS,* which runs sequentially by default.  Use corridor_pull_par, which will speed up extraction by approximately the number of cores on the machine (i.e. a 4-core Windows machine will run extraction at ~4X the processing speed when using corridor_pull_par than when using corridor_pull).
+* Corridor_pull_par:  pulls data for a corridor with parallel-run specifications - This is *recommended for Windows OS*.
+
+## Output
+Output is one file for each sensor for entire date range specified.
+
+## Output Size
+A complete year's worth of data for volume or occupancy for one sensor usually results in a file that is around ~30-31KB.
+
+## Run-time
+Approximate time to pull one sensor's and one extension's (v or c for volume or occupancy, respectively) data across a year on a Mac is 1.33 minutes.
+
+## Compatibility
+This code has been tested and validated on Mac iOS and Windows OS.
+
+## Missing Data
+Code has built-in error handling in the case that an entire day's worth of data (for either volume or occupancy) is missing for a sensor (a row is populated for the date in which time is listed as "Entire day missing").  If only part of a day is missing at a location, these are recorded as NULLs in data, and thus automatically differentiated from actual measured zeros (appear as '0' in the data).
+
+:: --------------------------------------------------------------
+
+# IMPORT - libraries
+
+:: --------------------------------------------------------------
+
+Parallel function is self-contained and does not need libraries imported here.
+
+```{r}
+library(tidyverse)
+library(jsonlite)
+library(stringr)
+library(timeDate)
+library(lubridate)
+library(rlang)
+library(parallel)
+library(data.table)
+library(microbenchmark)
+library(foreach)
+library(doParallel)
+```
+
+:: --------------------------------------------------------------
+
+# FIND - corridor and/or sensors
+
+:: --------------------------------------------------------------
+
+Use code below to take a look at the naming conventions for corridors (an input to all of the functions).  You can also take a look at the order of sensors and sensors in a corridor using this code (particularly useful for sensor_pull or corridor_pull_slice).
+
+```{r}
+# Can use code below to check which corridors are available for pull, and which sensors belong to which corridors
+
+# metro_config <- fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv')
+# 
+# Look at corridors in order of # of mainline stations
+metro_config %>%
+  filter(Rnode_n_type == 'Station') %>%
+  group_by(Corridor_route) %>%
+  count() %>%
+  arrange(desc(n))
+
+# Take a look at all the corridors
+metro_config %>%
+  select(Corridor_route) %>%
+  unique()
+# 
+# Find all sensors on a corridor
+config_mainline <- metro_config %>%
+  filter(Corridor_route == "U.S.71" & Rnode_n_type == 'Station') %>%
+  select(Detector_name)
+# 
+# Check mainline arguments
+# mainline_args <- crossing(config_mainline, extensions) %>%
+#   mutate(start_date = start_date,
+#          end_date = end_date) %>%
+#   rename(sensor = Detector_name)
+# 
+# Check where a detector falls corridor-wise
+# metro_config %>%
+#   filter(Detector_name == "564")
+
+```
+
+:: --------------------------------------------------------------
+
+# ARGUMENTS - corridor_pull_par or corridor_pull
+
+:: --------------------------------------------------------------
+
+Note overhead for corridor_pull_par - libraries need to be imported on each cluster (core), so this is only worth it if a lot of processing is going to be done.  For small amounts of processing (e.g. a select few dates and/or a select few sensors) or for testing purposes, use corridor_pull or corridor_pull_slice.
+
+```{r}
+# Create directory for new corridor - done once before running corridor pull
+corridor <- 'T.H.121'
+new_dir <- paste('Volume-Occupancy Data/', substr(start_date, 1, 4), '/', corridor, sep = '')
+
+dir.create(new_dir)
+
+metro_config <- fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv')
+
+```
+
+```{r}
+start_date <- '20180101'
+end_date <- '20181231'
+# corridor <- 'I-694'
+# sensor_start <- 4
+# sensor_end <- 5
+
+
+#microbenchmark(corridor_pull(corridor, start_date, end_date), times = 1)
+
+#corridor_pull(corridor, start_date, end_date)
+
+corridor_pull_par(corridor, start_date, end_date)
+
+```
+
+:: --------------------------------------------------------------
+
+# ARGUMENTS - corridor_pull_slice
+
+:: --------------------------------------------------------------
+
+Wrapper for sensor_pull.  sensor_pull is a dependency (function is not self-contained).
+
+```{r}
+
+start_date <- '20180101'
+end_date <- '20180102'
+#corridor <- 'I-494'
+sensor_start <- 3
+sensor_end <- 4
+
+#microbenchmark(corridor_pull(corridor, start_date, end_date), times = 1)
+
+corridor_pull_slice(corridor, start_date, end_date, sensor_start, sensor_end)
+```
+
+:: --------------------------------------------------------------
+
+# FUNCTION - corridor_pull_par
+
+:: --------------------------------------------------------------
+
+Parallel wrapper for sensor_pull function.  Function is self-contained.
+
+```{r}
+
+corridor_pull_par <- function(corridor, start_date, end_date) {
+  
+library(tidyverse)
+library(stringr)
+library(foreach)
+library(doParallel)
+
+sensor_pull <- function(corridor, sensor, extension, start_date, end_date) {
+  
+library(tidyverse)
+library(stringr)
+library(timeDate)
+library(lubridate)
+library(rlang)
+library(data.table)
+
+csv_name <- paste('Volume-Occupancy Data/', substr(start_date, 1, 4), '/', corridor, '/', substr(start_date, 1, 4), ' Sensor ', sensor, ' ', extension, '30', '.csv', sep = '')
+
+#fwrite(extensions, csv_name)
+
+# Create dataframe of all dates in year
+
+date <- as_date(ymd(start_date))-1 # Need to start the while with the day prior (works on a +1 logic)
+end_date <- as_date(ymd(end_date))
+dates_18 <- list()
+i <- 1
+
+while(date < end_date) {
+  
+  date = date + 1
+  dates_18[[i]] <- as.character(date)
+  i <- i + 1
+  
+}
+
+dates_18_df <- setNames(do.call(rbind.data.frame, dates_18), c('Date'))
+
+# Create URLs from dates
+loop_urls <- dates_18_df %>%
+  mutate(Date = str_replace_all(Date, c('-' = '')),
+         Loop_url_prefix = 'http://data.dot.state.mn.us:8080/trafdat/metro/2018/',
+         Post_date_slash = '/',
+         Sensor = sensor,
+         Post_sensor_period = '.',
+         Extension = extension,
+         Post_ex_30 = '30',
+         Json = '.json') %>%
+  unite(Loop_url, Loop_url_prefix, Date, Post_date_slash, Sensor, Post_sensor_period, Extension, Post_ex_30, Json, sep = '')
+
+## Create function for extracting data from URLs
+
+extract_loop_data <- function(URL){
+  
+  library(tidyverse)
+  library(jsonlite)
+  library(stringr)
+  library(timeDate)
+  library(rlang)
+  library(lubridate)
+  
+URL_df_default <- as_tibble(NA, validate = F)
+
+try(URL_df_default <- data_frame(fromJSON(URL)))
+
+URL_df_default$Date_sensor_ext <- str_sub(URL, 53, 69)
+
+if (length(URL_df_default[[1]]) == 1) {
+  
+  URL_df_tidy_na <- URL_df_default %>%
+    mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+    mutate(Value = URL_df_default[[1]]) %>%
+    select(Value, Date_sensor_ext) %>%
+    separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+    mutate(Time = 'Entire day missing') %>%
+    select(Value, Sensor, Ext, Date, Time)
+  
+  URL_df_tidy_na <<- URL_df_tidy_na
+  
+} else {
+
+URL_df_tidy <- URL_df_default %>%
+  mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+  mutate(Value = URL_df_default[[1]]) %>%
+  separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+  select(Value, Sensor, Ext, Date)
+
+times <- as.data.frame(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+times_tidy <- times %>%
+  mutate(Time = times[[1]]) %>%
+  mutate(Time = format(Time, format = '%H:%M:%S')) %>%
+  select(Time)
+
+URL_df_times <- bind_cols(URL_df_tidy, times_tidy)
+
+URL_df_times <<- URL_df_times
+
+}
+
+}
+
+URL_find <- function(slice_number){
+  
+URL_found <- as.character(loop_urls %>% slice(slice_number))
+
+URL_found
+
+}
+
+
+## Loop through the data extract function with every URL
+URLs_in_list <- c(1:nrow(loop_urls))
+
+loop_days_sensor_ext <- vector("list", length(URLs_in_list))
+for (i in seq_along(URLs_in_list)) {
+
+  loop_days_sensor_ext[[i]] <- extract_loop_data(URL_find(URLs_in_list[[i]]))
+  
+}
+
+
+## Save output as dataframe
+detector_ext <- do.call(bind_rows, loop_days_sensor_ext)
+
+fwrite(detector_ext, csv_name)
+
+}
+
+
+# -------------------------------
+
+# Above ends code delineating sensor_pull function
+# Below *implements* sensor_pull function, in parallel, for entire corridor selected
+
+# -------------------------------
+
+config_mainline <- metro_config %>%
+  filter(Corridor_route == corridor & Rnode_n_type == 'Station') %>%
+  select(Corridor_route, Detector_name) #%>%
+  #slice(sensor_start:sensor_end)
+  
+extensions <- as_tibble(c('c', 'v')) %>% rename(extension = value)
+  
+mainline_args <- crossing(config_mainline, extensions) %>%
+  mutate(start_date = start_date,
+         end_date = end_date) %>%
+  rename(sensor = Detector_name,
+         corridor = Corridor_route)
+
+mainline_list <- split(mainline_args, seq(nrow(mainline_args)))
+
+# Setting up parallel conection
+num_cores <- detectCores() # Check how many cores are present - trying to use more than this many won't provide any benefit
+registerDoParallel(num_cores)
+
+length_args <- c(1:length(mainline_list))
+foreach (i = seq_along(length_args)) %dopar% {
+
+  do.call(sensor_pull, mainline_list[[i]])
+  }
+
+}
+
+```
+
+:: --------------------------------------------------------------
+
+# FUNCTION - corridor_pull
+
+:: --------------------------------------------------------------
+
+Wrapper for sensor_pull.  Does not open a cluster.
+
+```{r}
+
+corridor_pull <- function(corridor, start_date, end_date) {
+
+config_mainline <- metro_config %>%
+  filter(Corridor_route == corridor & Rnode_n_type == 'Station') %>%
+  select(Corridor_route, Detector_name)
+  
+extensions <- as_tibble(c('c', 'v')) %>% rename(extension = value)
+  
+mainline_args <- crossing(config_mainline, extensions) %>%
+  mutate(start_date = start_date,
+         end_date = end_date) %>%
+  rename(sensor = Detector_name,
+         corridor = Corridor_route)
+
+mainline_list <- split(mainline_args, seq(nrow(mainline_args)))
+
+length_args <- c(1:length(mainline_list))
+
+for (i in seq_along(length_args)) {
+
+  do.call(sensor_pull, mainline_list[[i]])
+  }
+}
+
+```
+
+:: --------------------------------------------------------------
+
+# FUNCTION - corridor_pull_slice
+
+:: --------------------------------------------------------------
+
+Wrapper for sensor_pull.  Function is not self-contained.  Pulls select sensors based on **row key**.
+
+```{r}
+
+corridor_pull_slice <- function(corridor, start_date, end_date, sensor_start, sensor_end) {
+
+config_mainline <- metro_config %>%
+  filter(Corridor_route == corridor & Rnode_n_type == 'Station') %>%
+  select(Corridor_route, Detector_name)
+  
+extensions <- as_tibble(c('c', 'v')) %>% rename(extension = value)
+  
+mainline_args <- crossing(config_mainline, extensions) %>%
+  mutate(start_date = start_date,
+         end_date = end_date) %>%
+  rename(sensor = Detector_name,
+         corridor = Corridor_route) %>%
+  slice(sensor_start:sensor_end)
+
+mainline_list <- split(mainline_args, seq(nrow(mainline_args)))
+
+length_args <- c(1:length(mainline_list))
+
+for (i in seq_along(length_args)) {
+
+  do.call(sensor_pull, mainline_list[[i]])
+  }
+}
+
+```
+
+:: --------------------------------------------------------------
+
+# FUNCTION - sensor_pull
+
+:: --------------------------------------------------------------
+
+Inherits arguments from corridor_pull, corridor_pull_slice, or corridor_pull_par, or arguments can be input manually for one sensor.
+
+URL:  http://data.dot.state.mn.us:8080/trafdat/metro/yyyy/yyyymmdd/ssss.x30.json
+
+y: year
+m: month
+d: day
+s: sensor (variable number of alphanumeric characters; mode is 4 characters; range is 3-5 characters; alphanumeric)
+x: extension (v - volume; c - occupancy)
+
+```{r}
+sensor_pull <- function(corridor, sensor, extension, start_date, end_date) {
+  
+library(tidyverse)
+library(jsonlite)
+library(stringr)
+library(timeDate)
+library(lubridate)
+library(rlang)
+library(parallel)
+library(data.table)
+library(microbenchmark)
+library(foreach)
+library(doParallel)
+
+csv_name <- paste('Volume-Occupancy Data/', substr(start_date, 1, 4), '/', corridor, '/', 'Sensor ', sensor, ' ', extension, '30 ', start_date, '-', end_date, '.csv', sep = '')
+
+#fwrite(extensions, csv_name)
+
+# Create dataframe of all dates in year
+
+date <- as_date(ymd(start_date))-1 # Need to start the while with the day prior (works on a +1 logic)
+end_date <- as_date(ymd(end_date))
+dates_18 <- list()
+i <- 1
+
+while(date < end_date) {
+  
+  date = date + 1
+  dates_18[[i]] <- as.character(date)
+  i <- i + 1
+  
+}
+
+dates_18_df <- setNames(do.call(rbind.data.frame, dates_18), c('Date'))
+
+# Create URLs from dates
+loop_urls <- dates_18_df %>%
+  mutate(Date = str_replace_all(Date, c('-' = '')),
+         Loop_url_prefix = 'http://data.dot.state.mn.us:8080/trafdat/metro/2018/',
+         Post_date_slash = '/',
+         Sensor = sensor,
+         Post_sensor_period = '.',
+         Extension = extension,
+         Post_ex_30 = '30',
+         Json = '.json') %>%
+  unite(Loop_url, Loop_url_prefix, Date, Post_date_slash, Sensor, Post_sensor_period, Extension, Post_ex_30, Json, sep = '')
+
+## Create function for extracting data from URLs
+
+extract_loop_data <- function(URL){
+  
+URL_df_default <- as_tibble(NA, validate = F)
+
+try(URL_df_default <- data_frame(fromJSON(URL)))
+
+URL_df_default$Date_sensor_ext <- str_sub(URL, 53, 69)
+
+if (length(URL_df_default[[1]]) == 1) {
+  
+  URL_df_tidy_na <- URL_df_default %>%
+    mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+    mutate(Value = URL_df_default[[1]]) %>%
+    select(Value, Date_sensor_ext) %>%
+    separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+    mutate(Time = 'Entire day missing') %>%
+    select(Value, Sensor, Ext, Date, Time)
+  
+  URL_df_tidy_na <<- URL_df_tidy_na
+  
+} else {
+
+URL_df_tidy <- URL_df_default %>%
+  mutate(Date_sensor_ext = str_replace_all(Date_sensor_ext, c('\\.' = '_', '/' = '_'))) %>%
+  mutate(Value = URL_df_default[[1]]) %>%
+  separate(Date_sensor_ext, into = c('Date', 'Sensor', 'Ext'), sep = '_') %>%
+  select(Value, Sensor, Ext, Date)
+
+times <- as.data.frame(seq(from = as.POSIXct('00:00:00', format = '%H:%M:%S'), to = as.POSIXct('23:59:30', format = '%H:%M:%S'), by = 30))
+
+times_tidy <- times %>%
+  mutate(Time = times[[1]]) %>%
+  mutate(Time = format(Time, format = '%H:%M:%S')) %>%
+  select(Time)
+
+URL_df_times <- bind_cols(URL_df_tidy, times_tidy)
+
+URL_df_times <<- URL_df_times
+
+}
+
+}
+
+URL_find <- function(slice_number){
+  
+URL_found <- as.character(loop_urls %>% slice(slice_number))
+
+URL_found
+
+}
+
+
+## Loop through the data extract function with every URL
+URLs_in_list <- c(1:nrow(loop_urls))
+
+loop_days_sensor_ext <- vector("list", length(URLs_in_list))
+for (i in seq_along(URLs_in_list)) {
+
+  loop_days_sensor_ext[[i]] <- extract_loop_data(URL_find(URLs_in_list[[i]]))
+  
+}
+
+
+## Save output as dataframe
+detector_ext <- do.call(bind_rows, loop_days_sensor_ext)
+
+fwrite(detector_ext, csv_name)
+
+}
+
+```
+
+
+
+

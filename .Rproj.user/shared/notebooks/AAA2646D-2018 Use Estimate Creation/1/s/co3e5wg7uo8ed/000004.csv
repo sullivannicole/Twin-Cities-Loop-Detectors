@@ -1,0 +1,41 @@
+"0","setwd('Datasets/Indices')"
+"2","The working directory was changed to N:/CommDev/Research/Research/Parks_Regional/Use Estimates/2018/Use Estimate Creation/Datasets/Indices inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","seasonal_multipliers <- read_csv('Seasonal Multipliers.csv')"
+"2","Parsed with column specification:
+cols(
+  Park_name = col_character(),
+  Agency_name = col_character(),
+  Winter_multiplier = col_character(),
+  Spring_Fall_multiplier = col_character()
+)
+"
+"0","park_agency_codes <- read_csv('Park and Agency Codes Index.csv')"
+"2","Parsed with column specification:
+cols(
+  Park_id = col_integer(),
+  Park_name = col_character(),
+  Agency_name = col_character(),
+  Agency_id = col_integer()
+)
+"
+"0","summer_estimates_agency <- left_join(summer_estimates_2018, park_agency_codes, by = c('Park_id', 'Park_name'))"
+"0","estimates_events_camping <- full_join(summer_estimates_agency, events_camping, by = c('Park_name', 'Agency_name'))"
+"0","estimates_events_camping_seasons <- left_join(estimates_events_camping, seasonal_multipliers, by = c('Park_name', 'Agency_name'))"
+"0","annual_estimates <- estimates_events_camping_seasons %>%"
+"0","  mutate(Winter_multiplier = ifelse(Park_name == 'Nokomis-Minnesota River Bluffs Regional Trail' | Park_name == 'Point Douglas Regional Trail', 0.299, "
+"0","                                    ifelse(Park_name == 'Lake Minnetonka Islands' | Park_name == 'The Landing Special Recreation Feature', 0, as.numeric(Winter_multiplier))),"
+"0","         Spring_Fall_multiplier = ifelse(Park_name == 'Nokomis-Minnesota River Bluffs Regional Trail' | Park_name == 'Point Douglas Regional Trail', 1.533, "
+"0","                                         ifelse(Park_name == 'Lake Minnetonka Islands' | Park_name == 'The Landing Special Recreation Feature', 0, as.numeric(Spring_Fall_multiplier))),"
+"0","         Event_visitors = ifelse(is.na(Event_visitors), 0, Event_visitors),"
+"0","         Camping_visitors = ifelse(is.na(Camping_visitors), 0, Camping_visitors),"
+"0","         Walk_in_visits = ifelse(is.na(Walk_in_visits), 0, Walk_in_visits),"
+"0","         Estimate = ifelse(is.na(Estimate), 0, Estimate),"
+"0","         Enterprise_operation_visits = ifelse(is.na(Enterprise_operation_visits), 0, Enterprise_operation_visits)) %>%"
+"0","  mutate(Annual_estimate = Estimate + Estimate*Winter_multiplier + Estimate*Spring_Fall_multiplier + Event_visitors*1000 + Camping_visitors*1000 + Walk_in_visits*1000 - Enterprise_operation_visits*1000) %>%"
+"0","  mutate(Agency_name = ifelse(Park_name == 'Cleary Lake Regional Park (Scott County)' | Park_name == 'Murphy-Hanrehan Park Reserve (Scott County)', 'Three Rivers Park District - Scott', Agency_name))"
+"2","NAs introduced by coercion"
+"2","NAs introduced by coercion"
+"0","write_csv(annual_estimates, 'Results/Estimate of 2018 Usage of Regional Parks and Trails at Park-Trail Level.csv')"
+"2","cannot open file 'Results/Estimate of 2018 Usage of Regional Parks and Trails at Park-Trail Level.csv': No such file or directory"
+"2","Error in open.connection(path, ""wb"") : cannot open the connection
+"

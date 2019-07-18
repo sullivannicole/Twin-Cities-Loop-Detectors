@@ -1,0 +1,10 @@
+"0","```r
+# Create directory for new corridor - done once before running corridor pull
+corridor <- 'T.H.121'
+new_dir <- paste('Volume-Occupancy Data/', substr(start_date, 1, 4), '/', corridor, sep = '')
+
+dir.create(new_dir)
+
+metro_config <- fread('Configuration Data/Configuration of Metro Detectors 2019-01-08.csv')
+
+```"

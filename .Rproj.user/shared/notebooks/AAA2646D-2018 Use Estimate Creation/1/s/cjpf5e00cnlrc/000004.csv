@@ -1,0 +1,6 @@
+"0","# # In this case, Rum River Central Regional Park is responsible for the duplication.  Rum River CRP was given two park attributions for Anoka County, by mistake.  Remove the '109' attribution from the index."
+"0","# "
+"0","step_IIa_unjoined <- step_IIa %>%"
+"0","  filter(is.na(Park_id) | is.na(Agency_id)) %>%"
+"0","  select(Park_trail, Agency_name) %>%"
+"0","  unique()"

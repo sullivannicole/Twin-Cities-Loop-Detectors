@@ -1,0 +1,4 @@
+"0","num_cores <- detectCores()"
+"0","registerDoParallel(num_cores)"
+"2","Error in file(con, ""w"") : all connections are in use
+"

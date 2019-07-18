@@ -1,0 +1,7 @@
+"0","```r
+mod_coeffs_exp <- mod_coeffs %>%
+  gather(2:everything(), key = \"Category\", value = \"Coeff\")
+
+```"
+"1","numerical expression has 102 elements: only the first used
+"

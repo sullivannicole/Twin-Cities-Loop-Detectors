@@ -1,0 +1,32 @@
+"0","```r
+pander(summary(lm(clusters ~ perc_poc + median_hhi + rent + perc_new_bld, data = cl_mod)))
+
+cluster_snc <- cl00_17 %>%
+  filter(!is.na(clusters)) %>%
+  rename(POC2017 = perc_poc,
+         POC2000 = percentPOC2000,
+         EMV2000 = MedianValue2000,
+         EMV2017 = emv,
+         Rent2017 = rent,
+         Rent2000 = rent2000,
+         `65+2017` = perc_65up,
+         `65+2000` = perSixFive2000,
+         HHI2000 = medHHinc2000,
+         HHI2017 = median_hhi,
+         `New Builds2017` = perc_new_bld,
+         `New Builds2000` = builtSince00_2000) %>%
+  gather(2:13, key = \"Variable_year\", value = \"Value\") %>%
+  separate(Variable_year, into = c(\"Variable\", \"Year\"), sep = -4) %>%
+  mutate(tract = TRACT,
+         variable = Variable) %>%
+  unite(Tract_var, tract, variable)
+
+cluster_snc %>%
+  filter(Variable == \"65+\") %>%
+  ggplot(aes(Year, Value, color = clusters, group = Tract_var)) +
+  scale_color_manual(values = c(\"#6666CC\", \"#FF6699\", \"#339999\")) +
+  geom_line() +
+  geom_smooth(aes(group = clusters), color = \"white\")
+
+write_csv(cluster_snc, \"Results/Longitudinal Clustering/3-Cluster Solution Longitudinal Approach.csv\")
+```"

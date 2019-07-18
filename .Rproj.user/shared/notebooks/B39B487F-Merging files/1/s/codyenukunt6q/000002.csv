@@ -1,0 +1,16 @@
+"0","corridor <- ""T.H.100"""
+"0","setwd(paste(""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/"", corridor, sep = """"))"
+"2","The working directory was changed to N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/T.H.100 inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","file_list <- list.files()"
+"0","dataset <- do.call(""rbind"", foreach(i = file_list) %dopar% {"
+"0","  library(data.table)"
+"0","  fread(paste0(""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data/2018/"", corridor, ""/"", i))"
+"0","  })"
+"2","Error: cannot allocate vector of size 1.4 Gb
+"
+"2","Error during wrapup: "
+"2","cannot allocate vector of size 1.9 Gb
+"
+"0","fwrite(dataset, paste0(""N:/CommDev/Research/Public/MTS/Metro Loop Detectors/Volume-Occupancy Data (Merged)/"", corridor, "" Volume-Occupancy Data.csv""))"
+"2","Error in is.list(x) : object 'dataset' not found
+"
